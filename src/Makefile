@@ -1,9 +1,9 @@
 #include $(R_HOME)/etc/Makeconf
-OBJECTS= conversion.o CRscalapack.o ParallelAgent.o \
+OBJECTS=CRscalapack.o ParallelAgent.o \
 		PAdistData.o PAcollectData.o callpdgesv.o callpdgeqrf.o \
 		callpdgesvd.o callpdpotrf.o callpdpotri.o callpdsyevd.o \
 		CRcollectData.o CRdistData.o 
-PA_OBJECTS=conversion.o ParallelAgent.o PAdistData.o PAcollectData.o
+PA_OBJECTS=ParallelAgent.o PAdistData.o PAcollectData.o
 CR_OBJECTS=CRscalapack.o callpdgesv.o callpdgeqrf.o callpdgesvd.o \
 		callpdpotrf.o callpdpotri.o callpdsyevd.o CRcollectData.o \
 		CRdistData.o

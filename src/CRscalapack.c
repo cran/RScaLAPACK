@@ -1,5 +1,5 @@
 /*===========================================================================
- *           R-ScaLAPACK version 0.2:  ScaLAPACK interface to R
+ *           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
  *              Oak Ridge National Laboratory, Oak Ridge TN.
  *      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
  *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
@@ -31,8 +31,9 @@
 
 #ifdef DONT_SPAWN_R
 #define Rprintf printf
-#define AsInt(x) (SEXP)(x)
 #endif
+
+#define AsInt(x) (SEXP)(x)
 
 /* #define DEBUG_RSCALAPACK */
 

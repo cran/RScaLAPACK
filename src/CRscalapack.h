@@ -1,5 +1,5 @@
 /*===========================================================================
- *           R-ScaLAPACK version 0.2:  ScaLAPACK interface to R
+ *           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
  *              Oak Ridge National Laboratory, Oak Ridge TN.
  *      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
  *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
@@ -78,8 +78,5 @@ int CRSF_chol2inv(int dim[], int myrank);
 int CRSF_eigen(int dim[], int myrank);
 int CRSF_solve(int dim[], int myrank);
 int CRSF_svd(int dim[], int myrank);
-
-SEXP AsInt (int n);
-SEXP AsReal(double cdouble);
 
 #endif

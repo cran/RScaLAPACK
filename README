@@ -34,4 +34,4 @@ Note: Installation instructions can be found in "html" directory.
 
 2.  Run the Install command
 
-	R CMD INSTALL scalapack_0.3.1.tar.gz
+	R CMD INSTALL scalapack_0.3.6.tar.gz

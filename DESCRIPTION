@@ -1,8 +1,8 @@
 Package: RScaLAPACK
-Version: 0.3.2
-Date: 2004-04-05
+Version: 0.3.6
+Date: 2004-05-14
 Title: ScaLAPACK implementation in R
-Author: Nagiza F. Samatova <samatovan@ornl.gov>, Srikanth Yoginath <yoginathsb@ornl.gov>, and David Bauer <bauerda@ornl.gov>
+Author: Nagiza F. Samatova <samatovan@ornl.gov>, Srikanth Yoginath <yoginathsb@ornl.gov>, and David Bauer <bauerda@ornl.gov>
 Maintainer: Nagiza F. Samatova <samatovan@ornl.gov>
 Depends: R (>= 1.6.1)
 Description: An interface to ScaLAPACK functions from R 

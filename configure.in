@@ -15,6 +15,7 @@ AC_ARG_WITH(blacs,
 )
 
 AC_SEARCH_LIBS(openpty, [util])
+AC_SEARCH_LIBS(pow, [m])
 
 
 # Bdef.h -- Status ??
