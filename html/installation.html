@@ -1,0 +1,99 @@
+<html>
+<head>
+<title> R-ScaLAPACK &nbsp; Installation Instructions </title>
+</head>
+<body>
+<h2> R-ScaLAPACK &nbsp; Installation Instructions </h2>
+<p> The R-ScaLAPACK package is built on top of a number of other programs/libraries which are required for its use.<br>
+If you already have one or more of these packages installed on your system, then they do not need to be reinstalled. If you have access to appropriate packages for your system (RPMs or DEBs, for example), building these packages from source is not necessary.
+<h3>The following packages must be installed:</h3>
+<table border=1 spacing=4 cellspacing=2>
+<tr><th>Package</th><th>Files</th><th>Notes</th></tr>
+<tr><td>
+<a href="http://cran.us.r-project.org">The R Environment</a><br>
+</td><td>
+<b>R-{version}.tgz</b><br>
+(Tested with versions 1.6.1 and higher)
+</td><td>
+Installation Instructions can be found in the 'INSTALL' file of the package<br>
+We recommend that you set the R_HOME environmental variable as described in R's FAQ.<br>
+</td></tr>
+<tr><td>
+<a href="http://www.lam-mpi.org/7.0/download.php"> LAM MPI	</a>
+</td><td><b>lam-{version}.tar.gz</b><br>
+<u>Optional:</u> <b>lamtests-{version}.tar.gz</b><br>
+(Tested with versions 6.5.6 and higher)
+</td><td> 
+Installation instructions can be found in 'INSTALL' file of the package<br>
+Support for <a href="http://www-unix.mcs.anl.gov/mpi/mpich2/">MPICH-2</a> is expected soon.
+</td></tr>
+<tr><td><a href="http://www.netlib.org/blacs"> BLACS </a>
+</td><td>
+<b>mpiblacs.tgz <br>
+mpiblacs-patch03.tgz <br>
+blacstester.tgz</b> <br>
+</td><td>
+(i)  Untar the downloaded files, all the files untar into a single directory 'BLACS'<br>
+(ii) Copy Bmake.MPI-Linux and rename it to 'Bmake.inc'<br>
+Refer to a model Bmake.inc file using LAM-MPI for a Linux system ???<br>
+(iii) Run "make mpi" command to build the blacs library<br>
+(iv) The three blacs libraries must either be moved to or symlinked from a directory in the standard library search path (usually /usr/local/lib).
+</td></tr>
+<tr><td>
+<a href="http://www.netlib.org/blas">BLAS</a><br>
+(Alternately, <a href="http://math-atlas.sourceforge.net/">ATLAS</a> can be used)
+</td><td>
+<b>blas.tgz</b><br>
+<u>Optional:</u> <b>atlas{version}.tgz</b>
+</td><td>
+If a vendor optimized BLAS library is not available, the user is recommended to install ATLAS to generate an optimized BLAS library.<br>
+For ATLAS, installation instructions can be found in INSTALL.txt file of the package.
+</td></tr>
+<tr><td>
+<a href="http://www.netlib.org/scalapack">SCALAPACK</a>
+</td><td>
+<b>scalapack.tgz</b>
+</td><td>
+To install: untar the package, edit the SLmake.inc file, and then run 'make' to build the scalapack library.<br>
+The scalapack library must be moved to or symlinked from a directory in the standard library search path (usually /usr/local/lib).<br>
+</td></tr></table>
+<br>
+<h3> To Install R scalpack library </h3>
+<ol>
+<li> Make sure that you have the following libraries installed.<br>
+	<ul>
+	<li> LAM libraries<br>
+		<ul>
+		<li>liblamf77mpi
+		<li>libmpi
+		<li>liblam
+		</ul>
+	<li> BLAS libraries<br>
+		 ATLAS:<br>
+		<ul>
+		<li>libf77blas
+		<li>libatlas
+		</ul>
+		Other:<br>
+		<ul>
+		<li>libblas 
+		</ul>
+	<li> BLACS libraries<br>
+		 Note: Make sure that the naming of the libraries are same as listed below.<br>
+		<ul>
+		<li>libblacsF77init
+		<li>libblacs
+		<li>libblacsCinit
+		</ul>
+	<li> SCALAPACK library<br>
+		<ul>
+		<li>libscalapack
+		</uL>
+	</ul>
+
+<li>Run the Install command
+
+		R INSTALL scalapack_0.3.1.tar.gz
+</ol>
+</body>
+</html>

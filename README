@@ -1,0 +1,37 @@
+INSTALLATION Instructions:
+--------------------------
+
+1.  Make sure that you have the following libraries installed.
+
+	A. LAM libraries
+		a. liblamf77mpi
+		b. libmpi
+		c. liblam
+
+	B. BLAS libraries
+		Using Atlas:
+		a. libf77blas
+		b. libatlas
+
+		Using other
+		a. libblas
+
+	C. BLACS libraries
+        
+	   Note: Please, note that the naming of the libraries must be same
+    	         as listed below.
+
+		a. libblacsF77init
+		b. libblacs
+		c. libblacsCinit
+	
+
+	D. SCALAPACK libraries
+	
+		a. libscalapack
+
+Note: Installation instructions can be found in "html" directory.
+
+2.  Run the Install command
+
+	R CMD INSTALL scalapack_0.3.1.tar.gz

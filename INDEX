@@ -1,0 +1,21 @@
+sla.factanal            Factor Analysis
+sla.gridExit            Releases the Process Grid for ScaLAPACK
+                        Computations
+sla.gridInit            Initialize the Process Grid for ScaLAPACK
+                        Computations
+sla.qr                  The QR Decomposition of a Matrix (Using
+                        ScaLAPACK)
+sla.svd                 Singular Value Decomposition of a Matrix
+sla.solve               Solve a System of Equations using Scalapack
+                        functions
+sla.chol                Choleski Factorization of a real, symmetric,
+                        positive-definite, square-matrix using
+                        ScaLAPACK
+sla.chol2inv            Invert a Matrix from the Cholesky
+                        Decomposition (Using ScaLAPACK)
+sla.eigen               Spectral (Eigen) Decomposition of a Matrix
+sla.prcomp              Principal Components Analysis (Using
+                        ScaLAPACK)
+sla.princomp            Principal Components Analysis (Using
+                        ScaLAPACK)
+sla.varimax             Rotation Methods for Factor Analysis
