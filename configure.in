@@ -17,44 +17,7 @@ AC_ARG_WITH(blacs,
 AC_SEARCH_LIBS(openpty, [util])
 
 
-# Bdef.h -- taken care
-#AC_CHECK_HEADER(Bdef.h, [ BLACS_INCLUDE="" ],
-#[   if test "${supply_blacs}" = yes; then
-#     	echo "Try to find Bdef.h ..."
-#    	if test -f ${BLACS_ROOT}/SRC/MPI/INTERNAL/Bdef.h; then
-#            echo "Found in ${BLACS_ROOT}/SRC/MPI/INTERNAL"
-#            BLACS_INCLUDE="-I${BLACS_ROOT}/SRC/MPI/INTERNAL"
-#		elif test -f /usr/include/Bdef.h; then
-#			echo "Found in /usr/include"
-#		elif test -f /usr/local/include; then
-#			echo "Found in /usr/local/include"
-#    	elif test -f /home/yoginath/tools/BLACS/SRC/MPI/INTERNAL/Bdef.h; then
-#            echo "Found in /home/yoginath/tools/BLACS/SRC/MPI/INTERNAL"
-#	    BLACS_INCLUDE="-I/home/yoginath/tools/BLACS/SRC/MPI/INTERNAL"
-#	   	else 
-#		    echo "Cannot find Bdef.h header file"
-#		    echo "Please check if --with-blacs=${BLACS_ROOT} is right"
-#		    exit 1
-#    	fi
-#    else
-#	echo "Try to find Bdef.h ..."
-#    	if test -f /home/yoginath/tools/BLACS/SRC/MPI/INTERNAL/Bdef.h; then
-#            echo "Found in /home/yoginath/tools/BLACS/SRC/MPI/INTERNAL"
-#	    BLACS_INCLUDE="-I/home/yoginath/tools/BLACS/SRC/MPI/INTERNAL"
-#    	elif test -f /usr/include/Bdef.h; then
-#			echo "Found in /usr/include"
-#		elif test -f /usr/local/include/Bdef.h; then
-#			echo "Found in /usr/local/include"
-#		elif test -f ${HOME}/include/Bdef.h; then
-#			echo "Found in ${HOME}/include"
-#			BLACS_INCLUDE="-I${HOME}/include"
-#		else
-#		    echo "Cannot find Bdef.h header file."
-#		    echo "Please use --with-blacs=/path/to/blacs"
-#            exit 1  
-#       	fi
-#    fi 
-#])
+# Bdef.h -- Status ??
 
 AC_ARG_WITH(mpi,
 [   --with-mpi=/usr/local          Location of MPI library.],
@@ -69,38 +32,39 @@ AC_ARG_WITH(mpi,
 
 AC_CHECK_HEADER(mpi.h, [ MPI_INCLUDE="" ],
 [   if test "${supply_mpi}" = yes; then
-        echo "Try to find mpi.h ..."
-        if test -f ${MPI_ROOT}/include/mpi.h; then
+        echo "Looking for mpi.h in ${MPI_ROOT}/include"
+        if test -f "${MPI_ROOT}/include/mpi.h"; then
             echo "Found in ${MPI_ROOT}/include"
             MPI_INCLUDE="-I${MPI_ROOT}/include"
-		elif test -f /usr/include/mpi.h; then
-			echo "Found in /usr/include"
-		elif test -f /usr/local/include/mpi.h; then
-			echo "Found in /usr/local/include"
-        elif test -f /home/yoginath/tools/lam-7.0.2/include/mpi.h; then
-            echo "Found in /home/yoginath/tools/lam-7.0.2/include"
-            MPI_INCLUDE="-I/home/yoginath/tools/lam-7.0.2/include"
+		elif test -f "${MPI_ROOT}/mpi.h"; then
+			echo "Found in ${MPI_ROOT}"
+			MPI_INCLUDE="-I${MPI_ROOT}"
         else
-            echo "Cannot find mpi head file"
+            echo "Cannot find mpi header file"
             echo "Please check if --with-mpi=${MPI_ROOT} is right"
             exit 1
         fi
     else
         echo "Try to find mpi.h ..."
-        if test -f /home/yoginath/tools/lam-7.0.2/include/mpi.h; then
+        if test -f "/home/yoginath/tools/lam-7.0.2/include/mpi.h"; then
             echo "Found in /home/yoginath/tools/lam-7.0.2/include"
             MPI_INCLUDE="-I/home/yoginath/tools/lam-7.0.2/include"
-		elif test -f /usr/include/mpi.h; then
+		elif test -f "/usr/include/mpi.h"; then
 			echo "Found in /usr/include"
-		elif test -f /usr/local/include/mpi.h; then
+			MPI_INCLUDE="/usr/include"
+		elif test -f "/usr/local/include/mpi.h"; then
 			echo "Found in /usr/local/include"
-		elif test -f ${HOME}/include/mpi.h; then
+			MPI_INCLUDE="-I/usr/local/include"
+		elif test -f "${HOME}/include/mpi.h"; then
 			echo "Found in ${HOME}/include"
 			MPI_INCLUDE="-I${HOME}/include"
+		elif test -f "/usr/include/lam/mpi.h"; then
+			echo "Found in /usr/include/lam"
+			MPI_INCLUDE="-I/usr/include/lam"
 		else
 			MPI_INCLUDE=`locate "mpi.h" | grep "/mpi.h" | grep "[[Ll]][[Aa]][[Mm]]" | head -n 1`
-			echo ${MPI_INCLUDE}
-			if test -f ${MPI_INCLUDE}; then
+			echo "${MPI_INCLUDE}"
+			if test -f "${MPI_INCLUDE}"; then
 				MPI_INCLUDE=`echo ${MPI_INCLUDE} | sed "s/\(.*\/\)[[^\/]]*/\1/"`
 				echo "Found in ${MPI_INCLUDE}"
 				MPI_INCLUDE="-I${MPI_INCLUDE}"
