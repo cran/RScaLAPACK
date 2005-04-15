@@ -1,8 +1,19 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_INIT(DESCRIPTION)
-AC_PROG_CC
-AC_PROG_F77
+#AC_PROG_CC
+#AC_PROG_F77
+
+: ${R_HOME=`R RHOME`}
+if test -z "${R_HOME}"; then
+   echo "could not determine R_HOME"
+   exit 1
+fi
+
+CC=`"${R_HOME}/bin/R" CMD config CC`
+F77=`"${R_HOME}/bin/R" CMD config F77`
+CFLAGS=`"${R_HOME}/bin/R" CMD config CFLAGS`
+
 
 AC_ARG_WITH(blacs,
 [   --with-blacs=${HOME}/BLACS          Location of BLACS library.],
@@ -47,28 +58,25 @@ AC_CHECK_HEADER(mpi.h, [ MPI_INCLUDE="" ],
         fi
     else
         echo "Try to find mpi.h ..."
-        if test -f "/home/yoginath/tools/lam-7.0.2/include/mpi.h"; then
-            echo "Found in /home/yoginath/tools/lam-7.0.2/include"
-            MPI_INCLUDE="-I/home/yoginath/tools/lam-7.0.2/include"
-		elif test -f "/usr/include/mpi.h"; then
-			echo "Found in /usr/include"
-			MPI_INCLUDE="/usr/include"
-		elif test -f "/usr/local/include/mpi.h"; then
-			echo "Found in /usr/local/include"
-			MPI_INCLUDE="-I/usr/local/include"
-		elif test -f "${HOME}/include/mpi.h"; then
-			echo "Found in ${HOME}/include"
-			MPI_INCLUDE="-I${HOME}/include"
-		elif test -f "/usr/include/lam/mpi.h"; then
-			echo "Found in /usr/include/lam"
-			MPI_INCLUDE="-I/usr/include/lam"
-		else
-			MPI_INCLUDE=`locate "mpi.h" | grep "/mpi.h" | grep "[[Ll]][[Aa]][[Mm]]" | head -n 1`
-			echo "${MPI_INCLUDE}"
-			if test -f "${MPI_INCLUDE}"; then
-				MPI_INCLUDE=`echo ${MPI_INCLUDE} | sed "s/\(.*\/\)[[^\/]]*/\1/"`
-				echo "Found in ${MPI_INCLUDE}"
-				MPI_INCLUDE="-I${MPI_INCLUDE}"
+        if test -f "/usr/include/mpi.h"; then
+		echo "Found in /usr/include"
+		MPI_INCLUDE="/usr/include"
+	elif test -f "/usr/local/include/mpi.h"; then
+		echo "Found in /usr/local/include"
+		MPI_INCLUDE="-I/usr/local/include"
+	elif test -f "${HOME}/include/mpi.h"; then
+		echo "Found in ${HOME}/include"
+		MPI_INCLUDE="-I${HOME}/include"
+	elif test -f "/usr/include/lam/mpi.h"; then
+		echo "Found in /usr/include/lam"
+		MPI_INCLUDE="-I/usr/include/lam"
+	else
+		MPI_INCLUDE=`locate "mpi.h" | grep "/mpi.h" | grep "[[Ll]][[Aa]][[Mm]]" | head -n 1`
+		echo "${MPI_INCLUDE}"
+		if test -f "${MPI_INCLUDE}"; then
+			MPI_INCLUDE=`echo ${MPI_INCLUDE} | sed "s/\(.*\/\)[[^\/]]*/\1/"`
+			echo "Found in ${MPI_INCLUDE}"
+			MPI_INCLUDE="-I${MPI_INCLUDE}"
 	        else
 	            echo "Cannot find mpi header file."
 	            echo "Please use --with-mpi=/path/to/mpi"
@@ -126,13 +134,17 @@ AC_CHECK_LIB(blacsCinit, Cblacs_pinfo, [ true ] , [
 AC_CHECK_LIB(blacsF77init, blacs_pinfo__, [], [ 
 	AC_CHECK_LIB(blacsF77init-lam, blacs_pinfo__)
 ])
-AC_CHECK_LIB(lapack, clacrm_)
+
+AC_CHECK_LIB(lapack, clacrm_,[],
+	AC_CHECK_LIB(lapack-3,clacrm_))
+
 AC_CHECK_LIB(scalapack, pdgesv_, [], [
 	AC_CHECK_LIB(scalapack-lam, pdgesv_, [], [
 		echo "Error!  libscalapack is required."
 		exit -1
 	])
 ])
+
 CC=${CC_SAVE}
 
 dnl AX_CFLAGS_OPTIONS(var-name, option)

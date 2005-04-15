@@ -27,44 +27,45 @@
 # Scientific Discovery through Advanced Computing (DOE SciDAC) program
 # (http://www.scidac.org ). 
 # ======================================================================
-RpdsyevdDemo <- function () {
+RpdgemmDemo <- function () {
 
 	library(RScaLAPACK)
 
         print ("****************************************************")
-        print ("           DEMO: EIGEN DECOMPOSITION                ")
+        print ("            DEMO: Matrix Multiplication             ")
         print ("****************************************************")
 
+	x <- matrix(rnorm(36),6,6)
 
-        x <- c(4.16, -3.12,  0.56, -0.10, -3.12,  5.03, -0.83,  1.18,  0.56, -0.83,  0.76,  0.34, -0.10,  1.18,  0.34,  1.18)
-
-	dim(x) <- c(4,4)
+	y <- matrix(rnorm(36),6,6)
 
 	print (x)
 
-	print (" EIGEN DECOMPOSITION using ScaLAPACK function")
+	print (y)
 
-	print (" Process grid specifications .. in order ")
+	print (" Matrix Multiplication using SCALAPACK FUNCTION ")
+
+	print (" PROCESS GRID SPECIFICATIONS .. in order ")
 
 	print (" NPROWS = 2  NPCOLS = 2 ")
 
-	print (" Block size:  MB = 2   NB = 2 ")
+	print (" BLOCK SIZE LHS:  MB = 2   NB = 2 ")
 
-	print (" Calling ScaLAPACK function .. sla.eigen(x) ")
+	print (" CALLING SCALAPACK FUNCTION .. sla.multiply(x,y,2,2,2) ")
 
-	a <- sla.eigen(x)
+	a <- sla.multiply(x,y,2,2,2)
 
 	print(a)
 
-	print (" Eigen Decomoposition using corrosponding LAPACK function .. eigen(x) ")
+	print (" SOLVING USING CORRESPONDING LAPACK FUNCTION .. x %*% y ")
 
-	b <- eigen(x)
+	b <- x %*% y
 
 	print (b)
 
-	print (" Compare the results !! ")
+	print (" COMPARE BOTH RESULTS !! ")
 
-	print (" Experiment with different process grid parameters and different block sizes.")
+	print (" EXPERIMENT WITH DIFFERENT PROCESS GRID PARAMETERS ")
 
        print ("****************************************************")
 

@@ -1,7 +1,8 @@
-/*===========================================================================
- *           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
+/*======================================================================
+ *           R-ScaLAPACK version 0.4.x:  ScaLAPACK interface to R
  *              Oak Ridge National Laboratory, Oak Ridge TN.
- *      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
+ *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+ *                            Srikanth Yoginath.
  *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
  *                 Computer Science and Mathematics Division
  *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
@@ -20,18 +21,18 @@
  * purpose.  This software is provided ``as is'' without express or
  * implied warranty.
  *
- * R-ScaLAPACK (http://www.aspect-sdm.org/R-ScaLAPACK) was funded
+ * RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
  * as part of the Scientific Data Management Center
  * (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
  * Scientific Discovery through Advanced Computing (DOE SciDAC) program
  * (http://www.scidac.org ). 
- =============================================================================*/
+=========================================================================*/
 /*  ParallelAgent.c   The C code for the ParallelAgent of the R-ScaLAPACK
  *  package.
  */
 #include "ParallelAgent.h"
 
-/* #define DEBUG_RSCALAPACK */
+/*#define DEBUG_RSCALAPACK*/
 
 #ifndef DEBUG_RSCALAPACK
 #define D_Rprintf(x)
@@ -181,28 +182,23 @@ SEXP PA_Exec(SEXP scriptLocn, SEXP sxInputVector) {
 			Rprintf(" ERROR:  Failed to spawn (%d) child processes.\n", iNumProcs);
 			return R_NilValue;
 		}
-		MPI_Comm_set_errhandler(childComm, MPI_ERRORS_RETURN);
 
 		D_Rprintf(("SPAWNING SUCCESSFUL\n"));
 		/* End:  Spawn the child processes */
 		iGlobalNumChildren = iNumProcs;
 	}
 
+
 	/* SPECIAL for SVD */
 	/* If the function is SVD, the child process needs to know the nu,nv
 	 * parameters.
 	 */
-	if (iFunction == 2) {
-		if(ipDims[2] == 2) {
-			ipDims[2] = 0;
-			ipDims[3] = (1 && (int) dpB[0]);
-			ipDims[3] += (1 && (int) dpB[1]) << 1;
-		} else {
-			ipDims[2] = 0;
-			ipDims[3] = 4;
-		}
-	}
 
+	if (iFunction == 2) {
+		ipDims[2] = (int) dpB[0];
+		ipDims[3] = (int) dpB[1];
+	}
+	
 	/* DATA DISTRIBUTION */
 	/* The data is distributed by the PA to all of the child processes. */
 	if ((returnValue = PA_SendData(ipDims, dpA, dpB)) == 0)	{
@@ -234,7 +230,8 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	SEXP s;
 	int iMB;
 	int ipReleaseFlag;
-	/* First parameter is the first matrix. */
+
+	/* First parameter is the first matrix. --populates ipDims[0] and ipDims[1] */
 	s = VECTOR_PTR(sxInputVector)[0];
 	if (TYPEOF(s) != REALSXP) {
 		Rprintf("1st parameter (Matrix A) is not an array of doubles.\n");
@@ -252,7 +249,7 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	/* Save a pointer to the first matrix */
 	*dppA = REAL(s);
 
-	/* Second parameter is the second matrix. */
+	/* Second parameter is the second matrix. --populates ipDims[2] and ipDims[3] */
 	s = VECTOR_PTR(sxInputVector)[1];
 	if (TYPEOF(s) != REALSXP) {
 		Rprintf("2nd parameter (Matrix B) is not an array of doubles.\n");
@@ -271,7 +268,7 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	/* Save a pointer to the second matrix */
 	*dppB = REAL(s);
 
-	/* Third Parameter is number of Process Rows  -- integer*/
+	/* Third Parameter is number of Process Rows  -- populates ipDims[6] = NPROWS*/
 
 	s = VECTOR_PTR(sxInputVector)[2];
 	if (TYPEOF(s) != INTSXP) {
@@ -284,7 +281,7 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	}
 	ipDims[6] = INTEGER(s)[0];
 
-	/* Fourth Parameter is number of Process Cols -- integer */
+	/* Fourth Parameter is number of Process Cols -- populates ipDims[7] = NPCOLS */
 	s = VECTOR_PTR(sxInputVector)[3];
 	if (TYPEOF(s) != INTSXP) {
 		Rprintf("Fourth parameter (number of col processors) is not an integer.\n");
@@ -298,7 +295,7 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 
 	*ipNumProcs = ipDims[6] * ipDims[7];  /* iNumProcs = iNPRows * iNPCols  */
 
-	/* Fifth Parameter is Block Size -- MB -- integer */
+	/* Fifth Parameter is Block Size -- populates ipDims[4] =ipDims [5]= MB */
 
 	s = VECTOR_PTR(sxInputVector)[4];
 	if (TYPEOF(s) != INTSXP) {
@@ -323,7 +320,7 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	 */
 	ipDims[4] = ipDims[5] = iMB;
 
-	/* Sixth Parameter is function identifier  -- integer */
+	/* Sixth Parameter is function identifier  -- populates ipDims[8] = functionID */
 	s = VECTOR_PTR(sxInputVector)[5];
 	if (TYPEOF(s) != INTSXP) {
 		Rprintf("Sixth parameter (function) is not an integer.\n");
@@ -335,14 +332,15 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	}
 
 	*ipFunction = INTEGER(s)[0];
-	if (*ipFunction < 0 || *ipFunction > 6) {
+	if (*ipFunction < 0 || *ipFunction > 7) {
 		Rprintf("Error:  Unknown function ID (%d).\n", *ipFunction);
 		return -13;
 	}
 
 	ipDims[8]= *ipFunction;
 
-	/* Seventh parameter --- Instruction to Release Grid or not -- integer */
+	/* Seventh parameter --- Instruction to Release Grid or not -- populates ipDims[9]=ReleaseFlag */
+	/* Populating ipDims array is complete ... */
 	s = VECTOR_PTR(sxInputVector)[6];
 	if (TYPEOF(s) != INTSXP) {
 		Rprintf("Seventh parameter (function) is not an integer.\n");
@@ -361,7 +359,7 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	 * it either to spawn the processes or not to spawn (use the existing ones)
 	 */
 
-	/* Eighth parameter --- Instruction to Spawn Grid or not -- integer */
+	/* Eighth parameter --- Instruction to Spawn Grid or not*/
 	s = VECTOR_PTR(sxInputVector)[7];
 	if (TYPEOF(s) != INTSXP) {
 		Rprintf("Sixth parameter (function) is not an integer.\n");
@@ -401,9 +399,7 @@ int PA_SendData(int ipDims[], double dpA[], double dpB[]) {
 		iMatrixNum = 1;
 		F77_CALL (padistdata)(dpA,ipDims,&iWorksize, &iMatrixNum);
 
-
-
-		if (ipDims[2] != 0 ){
+		if (ipDims[2] != 0 && ipDims[8] != 2){
 			iMatrixNum = 2;
 			F77_CALL (padistdata)(dpB,ipDims,&iWorksize, &iMatrixNum);
 		}
@@ -548,7 +544,7 @@ int PA_SetDim(SEXP s, int iNumDim, int *ipMyDims) {
 
 	if (s != R_NilValue) {
 		if (TYPEOF(s) != INTSXP && TYPEOF(s) != REALSXP) {
-			printf("Error:  Cannot give dimensions to non-array object.\n");
+			Rprintf("Error:  Cannot give dimensions to non-array object.\n");
 			return -1;
 		}
 
@@ -556,7 +552,7 @@ int PA_SetDim(SEXP s, int iNumDim, int *ipMyDims) {
 		for (j = 0; j < iNumDim; j++) iSum *= ipMyDims[j];
 
 		if (iSum != LENGTH(s)) {
-			printf("Error:  Dimensions do not fit length of object.\n");
+			Rprintf("Error:  Dimensions do not fit length of object.\n");
 			return -2;
 		}
 
@@ -581,12 +577,12 @@ int PA_SetDim(SEXP s, int iNumDim, int *ipMyDims) {
 void PA_SendVectorToCR(int *ib, int *ia, double *work, int *mb, int *s2rank) {
 	MPI_Datatype GEMAT;
 
-	MPI_Type_vector(*ia, *ib, *mb, MPI_DOUBLE, &GEMAT);
-	MPI_Type_commit (&GEMAT);
+	PA_ErrorHandler(MPI_Type_vector(*ia, *ib, *mb, MPI_DOUBLE, &GEMAT));
+	PA_ErrorHandler(MPI_Type_commit (&GEMAT));
 
-	MPI_Send ( work, 1, GEMAT, *s2rank, 5000 , childComm);
+	PA_ErrorHandler(MPI_Send ( work, 1, GEMAT, *s2rank, 5000 , childComm));
 
-	MPI_Type_free (&GEMAT);
+	PA_ErrorHandler(MPI_Type_free (&GEMAT));
 }
 
 /* ****  PA_RecvVectorFromCR  ****
@@ -597,12 +593,12 @@ void PA_SendVectorToCR(int *ib, int *ia, double *work, int *mb, int *s2rank) {
 void PA_RecvVectorFromCR (int *ib, int *ia, double *A, int *mb, int *fromRank) {
 	MPI_Datatype GEMAT;
 
-	MPI_Type_vector(*ia, *ib, *mb, MPI_DOUBLE, &GEMAT);
-	MPI_Type_commit (&GEMAT);
+	PA_ErrorHandler(MPI_Type_vector(*ia, *ib, *mb, MPI_DOUBLE, &GEMAT));
+	PA_ErrorHandler(MPI_Type_commit (&GEMAT));
 
-	MPI_Recv (A, 1, GEMAT, *fromRank ,15000 ,childComm, MPINULL);
+	PA_ErrorHandler(MPI_Recv (A, 1, GEMAT, *fromRank ,15000 ,childComm, MPINULL));
 
-	MPI_Type_free (&GEMAT);
+	PA_ErrorHandler(MPI_Type_free (&GEMAT));
 }
 
 
@@ -617,7 +613,7 @@ int PA_ErrorHandler(int errcode)
 	if (errcode != MPI_SUCCESS) {
 		MPI_Error_string(errcode, errmsg, &errmsglen);
 		/* error(errmsg); */
-		printf("MPI Error: \"%s\"\n", errmsg);
+		Rprintf("MPI Error: \"%s\"\n", errmsg);
 	}
 
 	return errcode;

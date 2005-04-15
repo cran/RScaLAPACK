@@ -14,6 +14,7 @@ sla.chol                Choleski Factorization of a real, symmetric,
 sla.chol2inv            Invert a Matrix from the Cholesky
                         Decomposition (Using ScaLAPACK)
 sla.eigen               Spectral (Eigen) Decomposition of a Matrix
+sla.multiply            Matrix Multiplication
 sla.prcomp              Principal Components Analysis (Using
                         ScaLAPACK)
 sla.princomp            Principal Components Analysis (Using

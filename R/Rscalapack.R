@@ -1,7 +1,8 @@
-#  =======================================================================
-#           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
+# ====================================================================
+#           R-ScaLAPACK version 0.4.x:  ScaLAPACK interface to R
 #              Oak Ridge National Laboratory, Oak Ridge TN.
-#      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
+#        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+#                            Srikanth Yoginath.
 #     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
 #                 Computer Science and Mathematics Division
 #             Oak Ridge National Laboratory, Oak Ridge TN 37831 
@@ -20,12 +21,12 @@
 # purpose.  This software is provided ``as is'' without express or
 # implied warranty.
 #
-# R-ScaLAPACK (http://www.aspect-sdm.org/R-ScaLAPACK) was funded
+# RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
 # as part of the Scientific Data Management Center
 # (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
 # Scientific Discovery through Advanced Computing (DOE SciDAC) program
 # (http://www.scidac.org ). 
-# ========================================================================
+# ======================================================================
 
 sla.pdgesv<- function () {
 	abc<-.Call("CR_Exec", PACKAGE="RScaLAPACK")
@@ -97,7 +98,10 @@ sla.svd <- function (A=0, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, 
 	dim(A)<-dimA
 
 	if (is.null(nu) && is.null(nv)) {
-		B = as.real(NULL)
+#		B = as.real(NULL)
+		temp = as.real(min(dim(A)))
+		B = c(temp, temp)
+		print (B)
 	} else {
 		if (is.null(nv)) {
 			B = c(nu, min(dim(A)))
@@ -107,7 +111,7 @@ sla.svd <- function (A=0, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, 
 			B = c(nu, nv)
 		}
 		if ((B[1] != 0 && B[1] != min(dim(A))) || (B[2] != 0 && B[2] !=
-													min(dim(A)))) {
+										min(dim(A)))) {
 			stop("sla.svd only accepts 0 or min(n,p) for nu and nv")
 		}
 	}
@@ -121,22 +125,10 @@ sla.svd <- function (A=0, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, 
 
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
 
-    if (length(x) == 1) {
-        attributes(x) = list(names="x")
-        }
-
 	if (length(x) == 3) {
 		attributes(x) = list(names=c("d", "u", "vt"))
 		dim(x$d) = NULL
 		}
-
-#	if (length(x$u) == 0) {
-#		x$u = NULL
-#		}
-	
-#	if (length(x$vt) == 0) {
-#		x$vt = NULL
-#		}
 
 	return (x)
 }
@@ -277,17 +269,17 @@ sla.ProcessRowsColumns <- function(NPROWS, NPCOLS) {
                                                                                 
 # If the user didn't specify a grid, but a grid was found in the root
 # environment space, use that (but give a warning.)
-    if (NPROWS == 0 && exists(".RscalaGrid") && is.numeric(.RscalaGrid)) {
-        NPROWS = .RscalaGrid[1];
-        NPCOLS = .RscalaGrid[2];
-        if (is.na(NPCOLS)) NPCOLS = 0
-        if (is.na(NPROWS) || NPROWS < 1 || NPCOLS < 0) {
-            print("Bad grid found in .RscalaGrid, ignoring")
-            NPROWS = NPCOLS = 0
-        } else {
-            print("Using default grid from .RscalaGrid")
-        }
-    }
+#    if (NPROWS == 0 && exists(".RscalaGrid") && is.numeric(.RscalaGrid)) {
+#        NPROWS = .RscalaGrid[1];
+#        NPCOLS = .RscalaGrid[2];
+#        if (is.na(NPCOLS)) NPCOLS = 0
+#        if (is.na(NPROWS) || NPROWS < 1 || NPCOLS < 0) {
+#            print("Bad grid found in .RscalaGrid, ignoring")
+#            NPROWS = NPCOLS = 0
+#        } else {
+#            print("Using default grid from .RscalaGrid")
+#        }
+#    }
                                                                                 
 # If the user didn't specify a number of rows, use a single process
 # If the user didn't specify a number of columns, assume the number
@@ -304,9 +296,9 @@ sla.ProcessRowsColumns <- function(NPROWS, NPCOLS) {
                                                                                 
                                                                                 
         # Scalapack is faster with these switched.
-        t = NPROWS
-        NPROWS = NPCOLS
-        NPCOLS = t
+#        t = NPROWS
+#        NPROWS = NPCOLS
+#        NPCOLS = t
     }
                                                                                 
     return( c(NPROWS, NPCOLS) )
@@ -325,3 +317,58 @@ sla.gridExit <- function() {
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
         print (" Process Grid Released ... " )  
 }
+
+sla.multiply <- function( A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN=1 ) {
+
+#Check for availability of second matrix
+        if ( is.matrix(B) == FALSE )
+        {
+                print("Warning:Second matrix is missing, Assuming second matrix as A")
+                B = A
+        }
+
+#Get matrix sizes
+        dimA = dim(A)
+        dimB = dim(B)
+        
+#Get metrix dimensions
+        dimAlength = length(dimA)
+        dimBlength = length(dimB)
+        
+#Check for 2D matrix
+        if( dimAlength != 2 || dimBlength != 2 )
+        {       
+                stop("One \(or both\) of the matrices is not a 2D matrix.\n3D matrices are not yes supported.")
+        }
+
+#Check for crossproduct rule conformity, Cik = Aij*Bjk
+        if( dimA[2] != dimB[1] ){ 
+                stop( "Given matrix sizes do not conform to matrix multiplication rules" )
+        }
+
+# Force the matrices to be REALSXPs
+	A <- as.real(A)
+	B <- as.real(B)
+
+# Restore the dimensions
+	dim(A)<-dimA
+	dim(B)<-dimB
+
+	t = sla.ProcessRowsColumns(NPROWS, NPCOLS)
+	if (is.null(t)) return
+	NPROWS=t[1]
+	NPCOLS=t[2]
+
+	inputVector <- list(A,B,as.integer(NPROWS), as.integer(NPCOLS), as.integer(MB), as.integer(7),as.integer(RFLAG),as.integer(SPAWN))
+
+	#call 
+	x <- PA.exec("RScaLAPACK", "pdgesv.R", inputVector)
+
+	#check for the returned results
+	
+	#return the answer
+        return (x)
+
+}
+
+

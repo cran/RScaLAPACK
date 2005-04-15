@@ -1,7 +1,8 @@
-/*===========================================================================
- *           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
+/*======================================================================
+ *           R-ScaLAPACK version 0.4.x:  ScaLAPACK interface to R
  *              Oak Ridge National Laboratory, Oak Ridge TN.
- *      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
+ *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+ *                            Srikanth Yoginath.
  *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
  *                 Computer Science and Mathematics Division
  *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
@@ -20,12 +21,12 @@
  * purpose.  This software is provided ``as is'' without express or
  * implied warranty.
  *
- * R-ScaLAPACK (http://www.aspect-sdm.org/R-ScaLAPACK) was funded
+ * RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
  * as part of the Scientific Data Management Center
  * (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
  * Scientific Discovery through Advanced Computing (DOE SciDAC) program
  * (http://www.scidac.org ). 
-=============================================================================*/
+=========================================================================*/
 #include "CRscalapack.h"
 #include <stdlib.h>
 
@@ -35,7 +36,7 @@
 
 #define AsInt(x) (SEXP)(x)
 
-/* #define DEBUG_RSCALAPACK */
+/*#define DEBUG_RSCALAPACK*/ 
 
 #ifndef DEBUG_RSCALAPACK
 #define D_Rprintf(x)
@@ -112,7 +113,8 @@ SEXP CR_Exec() {
 		 * the function is sla.gridExit, so exit.
 		 */ 
 		if (ipGridAndDims[8] == 0 && rel_flag == 1){
-			F77_CALL(blacs_exit_)(&exitTemp);   
+			F77_CALL(blacs_exit_)(&exitTemp); 
+			printf ("Exiting BLACS  ... rank =  %d\n",iMyRank);  
 			return AsInt(1); 
 		}
 
@@ -133,10 +135,11 @@ int CR_InitializeEnv(int *ipMyRank, int *ipNumProcs) {
 * 3. No. of rows in matrix B
 * 4. No. of cols in matrix B
 * 5. MB - Row Block size for matrix A
-* 5. NB - Col Block size for matrix A
+* 6. NB - Col Block size for matrix A
 * 7. NPROW - Number of Process rows in the Process Grid - Row Block Size
 * 8. NPCOL - Number of Process cols in the Process Grid - Col Block Size
 * 9. Function id
+* 10. Relaease Flag 
 */
 int CR_GetInputParams(MPI_Comm mcParent, int *ipGridAndDims) {
 
@@ -188,6 +191,17 @@ int CR_CallScalapackFn (int *ipGridAndDims, int iMyRank) {
 			/* Eigen Value */
 			CRSF_eigen(ipGridAndDims, iMyRank);
 			break;
+		case 7:
+			/*Guru:
+			Following are the temp changes
+			Will make permament changes in the cvs later
+			*/
+			/* Matrix Multiplication */
+			/*CRSF_multiply(ipGridAndDims, iMyRank);*/
+			/*D_Rprintf(("Got every thing, Need to run multiplication alg.\n"));*/
+			CRSF_multiply(ipGridAndDims, iMyRank);
+			break;
+	
 		default:
 			Rprintf("%d:%s:%d: ASSERT ERROR: Reached unreachable default in switch statement!\n", iMyRank, __FILE__, __LINE__);
 			return -1;
@@ -254,30 +268,55 @@ void CR_SendDoubleToPA(double *data, int *infoDim, int *tag) {
  * qr decomposition on the input data.  
  */
 int CRSF_qr(int dim[], int iMyRank) {
-	int qrRank, sizeA, iMemSize;
-	double *dpRet_val = NULL;
+
+	int iMemSize = 0;
 	double *dpWork = NULL;
 
-	qrRank = min(dim[0], dim[1]);
-	sizeA = dim[0]*dim[1];
+	int ipZero[] = { 0, 1, 2, 3 };
+	int NPRow = dim[6];
+	int NPCol = dim[7];
+	int MyRow = iMyRank / NPCol;
+	int MyCol = iMyRank % NPCol;
 
-	/* Calculate proper size for memory allocation.
-	 *  ( sizeof(TAU array) ).
-	 */
+	int rowOfA = dim[0];
+	int colOfA = dim[1];
+	int rowBlockSize = dim[4];
+	int colBlockSize = dim[5];
 
-	dpRet_val = (double *) malloc(sizeof(double) * (qrRank) );
-	memset(dpRet_val, 0xcc, sizeof(double) * (qrRank) );
+	/* Calculate required memory size */
+	int localRowSizeOfA = F77_CALL(numroc)(&rowOfA, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	int localColSizeOfA = F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
+	int localSizeOfA = localRowSizeOfA * localColSizeOfA;
 
-	/* TODO Calculate proper iMemSize; */
-	iMemSize = sizeA * 2 + 1024;
+	int tauParam = min (rowOfA, colOfA);
+	int lTau = F77_CALL(numroc)(&tauParam, &colBlockSize, &MyCol, ipZero, &NPCol);
+	
+	int iZero = 0;
+	int iA = 1;
+	int jA = 1;
+	int iROff = rowBlockSize;
+	int iCOff = colBlockSize;
+	int iARow = F77_CALL(indxg2p)(&iA, &rowBlockSize, &MyRow,&iZero, &NPRow);
+	int iACol = F77_CALL(indxg2p)(&jA, &colBlockSize, &MyCol,&iZero, &NPCol);
+	int mp0Param = rowOfA + iROff;
+	int mP0 = F77_CALL(numroc)(&mp0Param, &rowBlockSize, &MyRow, &iARow, &NPRow);
+	int nQ0Param = colOfA + iCOff;
+	int nQ0 = F77_CALL(numroc)(&nQ0Param, &colBlockSize, &MyCol, &iACol, &NPCol);
+	int lWork = colBlockSize * (mP0 + nQ0 + colBlockSize);
+	
+	iMemSize = localSizeOfA + lTau + lWork;
+
 	dpWork = (double *) malloc(sizeof(double) * iMemSize);
-	D_Rprintf(("%d: Preparing to call Fortran QR function\n", iMyRank));
-	F77_CALL(callpdgeqrf)(dim, &sizeA, dpWork, &iMemSize,
-			dpRet_val);
-	D_Rprintf(("%d: After calling Fortran QR function\n", iMyRank));
+	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
 
-	free(dpWork);
-	free(dpRet_val);
+	D_Rprintf (("After allocating memory .. \n "));
+	
+	F77_CALL(callpdgeqrf)(dim, dpWork, &iMemSize);
+
+	D_Rprintf (("AFTER FORTRAN FUNCTION EXECUTION \n "));
+
+	free (dpWork);
+
 	return 0;
 }
 
@@ -287,15 +326,40 @@ int CRSF_qr(int dim[], int iMyRank) {
  * Choleski factorization on the input data.
  */   
 int CRSF_chol(int dim[], int iMyRank) {
-	int iMemSize;
+
+	int iMemSize = 0;
 	double *dpWork = NULL;
 
-	iMemSize =  dim[0] * dim[1] + dim [5] + 1;
-	dpWork = (double *) malloc(sizeof(double) * iMemSize);
+	int ipZero[] = { 0, 1, 2, 3 };
+	int NPRow = dim[6];
+	int NPCol = dim[7];
+	int MyRow = iMyRank / NPCol;
+	int MyCol = iMyRank % NPCol;
 
-	F77_CALL(callpdpotrf)(dim, dpWork,&iMemSize);
+	int rowOfA = dim[0];
+	int colOfA = dim[1];
+	int rowBlockSize = dim[4];
+	int colBlockSize = dim[5];
+
+	/* Calculate required memory size */
+	int localRowSizeOfA = F77_CALL(numroc)(&rowOfA, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	int localColSizeOfA = F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
+	int localSizeOfA = localRowSizeOfA * localColSizeOfA;
+	int workSpace = max (rowBlockSize, colBlockSize);
+
+	iMemSize = localSizeOfA + workSpace;
+	
+	dpWork = (double *) malloc(sizeof(double) * iMemSize);
+	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
+
+	D_Rprintf (("After allocating memory .. \n "));
+	
+	F77_CALL(callpdpotrf)(dim, dpWork, &iMemSize);
+
+	D_Rprintf (("AFTER FORTRAN FUNCTION EXECUTION \n "));
 
 	free (dpWork);
+
 	return 0;
 }
 
@@ -305,14 +369,41 @@ int CRSF_chol(int dim[], int iMyRank) {
  * inverting a matrix from its Choleski Factorization
  */ 
 int CRSF_chol2inv(int dim[], int iMyRank) {
-	int iMemSize;
+
+	int iMemSize = 0;
 	double *dpWork = NULL;
 
-	iMemSize = dim[0]*dim[1] + dim[5] + 1;
+	int ipZero[] = { 0, 1, 2, 3 };
+	int NPRow = dim[6];
+	int NPCol = dim[7];
+	int MyRow = iMyRank / NPCol;
+	int MyCol = iMyRank % NPCol;
+
+	int rowOfA = dim[0];
+	int colOfA = dim[1];
+	int rowBlockSize = dim[4];
+	int colBlockSize = dim[5];
+
+	/* Calculate required memory size */
+	int localRowSizeOfA = F77_CALL(numroc)(&rowOfA, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	int localColSizeOfA = F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
+	
+	int localSizeOfA = localRowSizeOfA * localColSizeOfA;
+	int workSpace = max (rowBlockSize, colBlockSize);
+
+	iMemSize = localSizeOfA + workSpace;
+	
 	dpWork = (double *) malloc(sizeof(double) * iMemSize);
+	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
+
+	D_Rprintf (("After allocating memory .. \n "));
+	
 	F77_CALL(callpdpotri)(dim, dpWork, &iMemSize);
 
-	free(dpWork);
+	D_Rprintf (("AFTER FORTRAN FUNCTION EXECUTION \n "));
+
+	free (dpWork);
+
 	return 0;
 }
 
@@ -322,18 +413,53 @@ int CRSF_chol2inv(int dim[], int iMyRank) {
  * eigen value decomposition or Spectral decomposition 
  */
 int CRSF_eigen(int dim[], int iMyRank) {
-	int iMemSize;
-	double *dpRet_val = NULL;
 
-	iMemSize = dim[0];
-	if (iMyRank == 0){
-		dpRet_val = (double *) malloc(sizeof(double) * iMemSize);
-	}
+	int iMemSize = 0;
+	double *dpWork = NULL;
 
-	F77_CALL(callpdsyevd)(dim, dpRet_val);
+	int ipZero[] = { 0, 1, 2, 3 };
+	int NPRow = dim[6];
+	int NPCol = dim[7];
+	int MyRow = iMyRank / NPCol;
+	int MyCol = iMyRank % NPCol;
 
-	if (iMyRank == 0) 
-		free(dpRet_val);
+	int rowOfA = dim[0];
+	int colOfA = dim[1];
+	int rowBlockSize = dim[4];
+	int colBlockSize = dim[5];
+
+	/* Calculate required memory size */
+	int sizeOfLWORK;
+	
+	int tRILWMIN;
+	int np, nq;
+	
+	int localRowSizeOfA = F77_CALL(numroc)(&rowOfA, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	int localColSizeOfA = F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
+
+	int localSizeOfA = localRowSizeOfA * localColSizeOfA;
+	int localSizeOfZ = localRowSizeOfA * localColSizeOfA;
+	int localSizeOfW = colOfA;
+	int sizeOfLIWORK = 7 * colOfA + 8 * NPCol +2;
+	
+	np =  F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPRow);
+	nq =  F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
+	tRILWMIN = 3 * colOfA + max ( colBlockSize * (np +1) , 3 * colBlockSize);
+	sizeOfLWORK = max (1 + 6 * colOfA + 2*np*nq, tRILWMIN ) + 2 * colOfA;
+
+	iMemSize = localSizeOfA + localSizeOfZ + localSizeOfW + sizeOfLIWORK + sizeOfLWORK ;
+
+	dpWork = (double *) malloc(sizeof(double) * iMemSize);
+	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
+
+	D_Rprintf (("After allocating memory .. \n "));
+	
+	F77_CALL(callpdsyevd)(dim, dpWork, &iMemSize);
+
+	D_Rprintf (("AFTER FORTRAN FUNCTION EXECUTION \n "));
+
+	free (dpWork);
+
 	return 0;
 }
 
@@ -343,9 +469,8 @@ int CRSF_eigen(int dim[], int iMyRank) {
  *  singular value decomposition 
  */
 int CRSF_svd(int dim[], int iMyRank) {
-	int iMemSize;
+	int iMemSize = 0;
 	double *dpWork = NULL;
-	double *dpRet_val = NULL;
 
 	int ipZero[] = { 0, 1, 2, 3 };
 	int NPRow = dim[6];
@@ -353,62 +478,107 @@ int CRSF_svd(int dim[], int iMyRank) {
 	int MyRow = iMyRank / NPCol;
 	int MyCol = iMyRank % NPCol;
 
-	if (dim[2] == 0 && dim[3] != 4) {
-		/* A number of left or right vectors to return was specified.
-		 ** Store that information in dim[2] and dim[3], because those
-		 ** are already getting passed to the SVD function and aren't
-		 ** being used for anything else.
-		 **/
-		dim[2] = (dim[3] & 0x01);
-		dim[3] = (dim[3] & 0x02);
-	} else {
-		dim[2] = 1;		dim[3] = 1;
-	}
+	int rowOfA = dim[0];
+	int colOfA = dim[1];
+	int rowBlockSize = dim[4];
+	int colBlockSize = dim[5];
 
-	/* Calculate the size of the workspace. */
+	/* Calculate the required mem size */
+	int localRowSizeOfA = 0;
+	int localColSizeOfA = 0;
+	
+	int localSizeOfA = 0;
+	int singularVectorSize = 0;
+	int localSizeOfU = 0;
+	int localSizeOfVT = 0;
+	int localWorkSpaceSize = 0;
+
+	D_Rprintf ((" In CRSF_svd func .. 1 \n"));
+
+	/* Get the values */
+	localRowSizeOfA = F77_CALL(numroc)(&rowOfA, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	localColSizeOfA = F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
+
+	localSizeOfA = localRowSizeOfA * localColSizeOfA;
+	singularVectorSize = colOfA;
+	localSizeOfU = localRowSizeOfA * localRowSizeOfA ;
+	localSizeOfVT = localColSizeOfA * localColSizeOfA ;
+
+
+	if (iMyRank == 0)
 	{
-		int iRowA = F77_CALL(numroc)(dim, dim+4, &MyRow, ipZero, &NPRow);
-		int iRows = F77_CALL(numroc)(dim+1, dim+4, &MyRow, ipZero, &NPRow);
-		int iNCol = F77_CALL(numroc)(dim+1, dim+5, &MyCol, ipZero, &NPCol);
-		int iNQ = F77_CALL(numroc)(dim+1, dim+5, &MyCol, &iRowA, &NPCol);
-
-		/* printf("Mem sizes: %d, %d, %d, %d\n", iRowA, iRows, iNCol, iNQ); */
-
-		iMemSize = (max(1, iRowA) * 2 + max(1, iRows)) * iNCol + dim[1];
-		iMemSize += max(iRowA, max(iRows, iNCol));
-		iMemSize *= 2;
-		iMemSize += max(NPRow*dim[4]*dim[1], 2 + 6*max(dim[0], dim[1]) +
-				(dim[5]+1)*(iRowA+iNCol+1));
+		/* Calculate workspace size and Broadcast */
+		int wATOBD =0;
+		int ictxt;
+		int mp0 = 0, nq0 = 0;
+		int temp1=-1, temp2=0;
+		int lldA = max (1, localRowSizeOfA);
 		
-		/* printf("SVD: Calculated mem1: %d\n", iMemSize); */
+		int wBDTOSVD;
+		int size = min (rowOfA, colOfA);
+		int sizeP = F77_CALL(numroc)(&size, &rowBlockSize, &MyRow, ipZero, &NPRow);
+		int sizeQ = F77_CALL(numroc)(&size, &colBlockSize, &MyCol, ipZero, &NPRow);
+		int wANTU = 1;
+		int NRU = localRowSizeOfA;
+		int wANTVT = 1;
+		int NCVT = localColSizeOfA;
+		int wBDSQR;
+		int wPDORMBRQLN;
+		int wPDORMBRPRT;
+
+		D_Rprintf ((" Process 0 ... in cntrl statement ..after init \n"));
+
+			
+		F77_CALL(blacs_get_)(&temp1, &temp2, &ictxt);
+		/* Calculate the value for WATOBD */
+
+		D_Rprintf ((" Process 0 ... in cntrl statement ..1 \n"));
+		mp0 = F77_CALL(numroc)(&rowOfA, &rowBlockSize, &MyRow, &ictxt , &NPRow);
+		nq0 = F77_CALL(numroc)(&rowOfA, &colBlockSize, &MyCol, &lldA , &NPRow);
+
+		wATOBD = rowBlockSize * (mp0 + nq0 + 1) + nq0 ;
+
+		D_Rprintf ((" Process 0 ... in cntrl statement ..2 \n"));
+		/* Calculate the value for WBDTOSVD */
 		
-		iMemSize += max( (dim[4]*(dim[4]-1))/2,
-						 (2*iRows)*dim[4])+dim[4]*dim[4];
-						 
-		/* printf("SVD: Calculated mem2: %d\n", iMemSize); */
+		wBDSQR = max (1, 2*size + (2*size - 4) * max (wANTU, wANTVT)) ;
+		wPDORMBRQLN = max (colBlockSize *(colBlockSize -1)/2 , (sizeQ + mp0)*colBlockSize) + colBlockSize * colBlockSize;
+		wPDORMBRPRT= max (rowBlockSize *(rowBlockSize -1)/2 , (sizeP + nq0)*rowBlockSize) + rowBlockSize * rowBlockSize;
 
-		/* TODO  BUG:  Fudge factor for memory allocation */
-		iMemSize += 2*(iRowA + iNQ + max(1, iRowA)*iNCol*3 +
-			max(0, NPRow*dim[4]*(dim[0] - dim[1])));
+		wBDTOSVD = size * (wANTU * NRU + wANTVT * NCVT) + max (wBDSQR,max (wANTU * wPDORMBRQLN , wANTVT * wPDORMBRPRT));
 
-		/* printf("SVD: Fudged mem: %d\n", iMemSize); */
+		localWorkSpaceSize = 2 + 6* max( rowOfA, colOfA) + max (wATOBD, wBDTOSVD);
+
+		D_Rprintf ((" Process 0 ... in cntrl statement ..3 \n"));
 
 	}
 
+	D_Rprintf (("  after cntrl statement ..rank = %d  \n", iMyRank));
+	
+	if (MPI_Bcast (&localWorkSpaceSize, 1, MPI_INT, 0, MPI_COMM_WORLD) != MPI_SUCCESS){
+		Rprintf ("SVD: Failed during MPI_Bcast call ... Rank: %d Exiting \n", iMyRank); 
+		exit (-1);
+	} 
+	
+	iMemSize = localSizeOfA + singularVectorSize + localSizeOfU + localSizeOfVT + localWorkSpaceSize;
+	
+	D_Rprintf ((" After Broadcasting iMemSize = %d .. localWspace = %d ... rank = %d \n", iMemSize,localWorkSpaceSize, iMyRank));
+	
 	dpWork = (double *) malloc(sizeof(double) * iMemSize);
+	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
 
-	if (iMyRank == 0 ){
-		dpRet_val = (double *) malloc(sizeof(double)*min(dim[0],dim[1]));
-	}
+	D_Rprintf (("After allocating memory .. \n "));
+	
+	F77_CALL(callpdgesvd)(dim, dpWork, &iMemSize);
 
-	F77_CALL(callpdgesvd)(dim, dpRet_val, dpWork, &iMemSize);
+	D_Rprintf (("AFTER FORTRAN FUNCTION EXECUTION \n "));
 
 	free(dpWork);
 
-	if (iMyRank == 0 )
-		free(dpRet_val);
 	return 0;
+
 }
+
 
 /* **** CRSF_solve ****
  *  This function is a C interface to the fortran implemented 
@@ -416,7 +586,8 @@ int CRSF_svd(int dim[], int iMyRank) {
  *  equations A * X = B for 'X'
  */
 int CRSF_solve(int dim[], int iMyRank) {
-	int iMemSize;
+
+	int iMemSize = 0;
 	double *dpWork = NULL;
 
 	int ipZero[] = { 0, 1, 2, 3 };
@@ -425,22 +596,108 @@ int CRSF_solve(int dim[], int iMyRank) {
 	int MyRow = iMyRank / NPCol;
 	int MyCol = iMyRank % NPCol;
 
-	int iNP = F77_CALL(numroc)(dim, dim+5, &MyRow, ipZero, &NPRow);
-	int iLIPIV = (int) ( (4.0 * (iNP + dim[5]) + 7.0) / 8.0 );
-	int iLLD = max(1, iNP);
+	int rowOfA = dim[0];
+	int colOfA = dim[1];
+	int rowOfB = dim[2];
+	int colOfB = dim[3];
+	int rowBlockSize = dim[4];
+	int colBlockSize = dim[5];
 
-	iMemSize = (2*F77_CALL(numroc)(dim, dim+5,&MyCol,ipZero,&NPCol)*iLLD +
-			2*F77_CALL(numroc)(dim+3,dim+5,&MyCol,ipZero,&NPCol)*iLLD +
-			max(max(iNP, iLIPIV), dim[5]) + dim[5] );
-	/* TODO  WARNING  BUG !!!
-	 * The amount of memory that I calculate Fortran as needing is a few bytes
-	 * shy of what it calculates it needs.  (38*8 bytes shy for a 9x9 matrix;
-	 * 65*8 bytes shy for a 2k x 2k matrix.  In order to protect against this
-	 * problem, I allocate a few extra bytes.  The smallest safe variable is
-	 * the last term in the allocation.
-	 */
+	/* Calculate the MemSize */	
+	int localRowSizeOfA = F77_CALL(numroc)(&rowOfA, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	int localColSizeOfA = F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
 
-	iMemSize += 2 + max(max(iNP, iLIPIV), dim[5]);
+	int localRowSizeOfB = F77_CALL(numroc)(&rowOfB, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	int localColSizeOfB = F77_CALL(numroc)(&colOfB, &colBlockSize, &MyCol, ipZero, &NPCol);
+
+	int localSizeOfA = localRowSizeOfA * localColSizeOfA;
+	int localSizeOfB = localRowSizeOfB * localColSizeOfB;
+	int localSizeOfPiv = localRowSizeOfA + rowBlockSize;
+	int localWorkSize = colBlockSize; 
+
+	iMemSize = localSizeOfA + localSizeOfB + localSizeOfPiv + localWorkSize;
+
+	dpWork = (double *) malloc(sizeof(double) * iMemSize);
+	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
+
+	D_Rprintf (("After allocating memory .. \n "));
+	
+	F77_CALL(callpdgesv)(dim, dpWork, &iMemSize);
+
+	D_Rprintf (("AFTER FORTRAN FUNCTION EXECUTION \n "));
+
+	free (dpWork);
+
+	return 0;
+}
+
+/* **** CRSF_multiply ****
+ *  This function is a C interface to the fortran implemented 
+ *  scalapack driver function "callpdgemm" that performs matrix
+ *  multiplication.
+ */
+int CRSF_multiply(int dim[], int iMyRank) {
+
+	int iMemSize;
+	/*int ii;*/
+	int localRowSizeOfA;
+	int localColSizeOfA;
+	int localRowSizeOfB;
+	int localColSizeOfB;
+	int localRowSizeOfC;
+	int localColSizeOfC;
+	double *dpWork = NULL;
+
+	int ipZero[] = { 0, 1, 2, 3 };
+	int NPRow = dim[6];
+	int NPCol = dim[7];
+	int MyRow = iMyRank / NPCol;
+	int MyCol = iMyRank % NPCol;
+
+	int rowOfA = dim[0];
+	int colOfA = dim[1];
+	int rowOfB = dim[2];
+	int colOfB = dim[3];
+	int rowBlockSize = dim[4];
+	int colBlockSize = dim[5];
+
+	int iLLD_A = 0;
+	int iLLD_B = 0;
+	int iLLD_C = 0;
+
+	localRowSizeOfA = F77_CALL(numroc)(&rowOfA, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	localColSizeOfA = F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
+
+	localRowSizeOfB = F77_CALL(numroc)(&rowOfB, &rowBlockSize, &MyRow, ipZero, &NPRow);
+	localColSizeOfB = F77_CALL(numroc)(&colOfB, &colBlockSize, &MyCol, ipZero, &NPCol);
+
+	localRowSizeOfC = localRowSizeOfA;
+	localColSizeOfC = localColSizeOfB;
+
+	if ( localColSizeOfA > 0 )
+		iLLD_A = max( 1, localRowSizeOfA );
+	else
+		iLLD_A = 1;
+
+
+	if ( localColSizeOfB > 0 )
+		iLLD_B = max( 1, localRowSizeOfB );
+	else
+		iLLD_B = 1;
+
+	if ( localColSizeOfC > 0 )
+		iLLD_C = max( 1, localRowSizeOfC );
+	else
+		iLLD_C = 1;
+
+
+	/* I am calculating memory for only three matrices A, B & C(output). */
+
+	iMemSize = iLLD_A * localColSizeOfA + iLLD_B * localColSizeOfB + iLLD_C * localColSizeOfC + colBlockSize + 1;
+
+	D_Rprintf(( "%d/%d: Mem size for me = %d\n", MyRow, MyCol, iMemSize ));
+
+
 
 	dpWork = (double *) malloc(sizeof(double) * iMemSize);
 	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
@@ -448,18 +705,11 @@ int CRSF_solve(int dim[], int iMyRank) {
 	D_Rprintf(("%d:  Allocated a work vector of size %d bytes\n",
 				iMyRank, sizeof(double) * iMemSize));
 
-	/* Rprintf("%d:  iNP = %d, iLLD = %d, MyRow = %d, MyCol = %d\n",
-	 * iMyRank, iNP, iLLD, MyRow, MyCol);
-	 *
-	 * Rprintf("%d:  %d + %d + %d\n", iMyRank, 2*F77_CALL(numroc)
-	 * (dim, dim+5,&MyCol,ipZero,&NPCol)*iLLD, 2*F77_CALL(numroc)
-	 * (dim+3,dim+5,&MyCol,ipZero,&NPCol)*iLLD, max(max(iNP, iLIPIV), dim[5]) );
-	 */
-
-	F77_CALL(callpdgesv)(dim, dpWork, &iMemSize);
+	F77_CALL(callpdgemm)(dim, dpWork, &iMemSize);
 
 	free(dpWork);
 	return 0;
 }
+
 
 /* ****  End CRSFs  -- Child R-ScaLAPACK Functions ****  */

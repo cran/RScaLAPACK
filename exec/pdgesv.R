@@ -1,2 +1,2 @@
-library(scalapack)
+library(RScaLAPACK)
 xyz<-sla.pdgesv()

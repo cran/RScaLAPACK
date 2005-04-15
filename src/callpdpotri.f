@@ -1,7 +1,8 @@
-* =======================================================================
-*           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
+* ====================================================================
+*           R-ScaLAPACK version 0.4.x:  ScaLAPACK interface to R
 *              Oak Ridge National Laboratory, Oak Ridge TN.
-*      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
+*        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+*                            Srikanth Yoginath.
 *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
 *                 Computer Science and Mathematics Division
 *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
@@ -20,12 +21,12 @@
 * purpose.  This software is provided ``as is'' without express or
 * implied warranty.
 *
-* R-ScaLAPACK (http://www.aspect-sdm.org/R-ScaLAPACK) was funded
+* RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
 * as part of the Scientific Data Management Center
 * (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
 * Scientific Discovery through Advanced Computing (DOE SciDAC) program
 * (http://www.scidac.org ). 
-* ========================================================================
+* ======================================================================
 *     Based on:
 *
 *     -- ScaLAPACK example code --
@@ -35,176 +36,144 @@
 *     Written by Antoine Petitet, August 1995 (petitet@cs.utk.edu)
 *
 * ==============================================================================
-
-      SUBROUTINE CALLPDPOTRI( PGINFO, MEM, MEMSIZ)
-      
+       
+      SUBROUTINE CALLPDPOTRI (PGINFO, MEM, MEMSIZ)
+*
       INTEGER PGINFO(9)
-      DOUBLE PRECISION MEM(*)
+      DOUBLE PRECISION MEM (*)
       INTEGER MEMSIZ
 
-*     Purpose:
-*     ========
-*     This subroutine inverts a symmetric positive-definite square matrix
-*     from its Choleski decomposition by calling the ScaLAPACK routine PDPOTRI.
-*     The computed result is returned back.
-*
-* ===============================================================================
-*
-*     .. Parameters ..
-      INTEGER            DBLESZ, INTGSZ
-      PARAMETER          ( DBLESZ = 8, INTGSZ = 4 )
-      INTEGER            BLOCK_CYCLIC_2D, CSRC_, CTXT_, DLEN_, DT_,
-     $                   LLD_, MB_, M_, NB_, N_, RSRC_
-      PARAMETER          ( BLOCK_CYCLIC_2D = 1, DLEN_ = 9, DT_ = 1,
-     $                     CTXT_ = 2, M_ = 3, N_ = 4, MB_ = 5, NB_ = 6,
-     $                     RSRC_ = 7, CSRC_ = 8, LLD_ = 9 )
-      DOUBLE PRECISION   ONE
-      PARAMETER          ( ONE = 1.0D+0 )
-*     ..
-*     .. Local Scalars ..
-      INTEGER            IAM, ICTXT, INFO, IPA, 
-     $                   IPW,  MYCOL,MYROW,N, NB_BLK, NOUT, NPCOL,
-     $                   NPROCS, NPROW, NP, NQ, WORKSIZ,
-     $                   M_MAT1, N_MAT1, NOUTMAT
-*     ..
-*     .. Local Arrays ..
-      INTEGER            DESCA( DLEN_ ), OUTDIM(3)
-*     ..
-      EXTERNAL           BLACS_EXIT, BLACS_GET, BLACS_GRIDEXIT,
-     $                   BLACS_GRIDINFO, BLACS_GRIDINIT, BLACS_PINFO,
-     $                   DESCINIT, PDPOTRI, CRCollectData, CRDistData
-*     ..
+* ==============================================================
+*     Variable Declaration
+
+*     .. Array Descriptor Parameters ..
+      INTEGER BLOCK_CYCLIC_2D, DLEN_, DT_, CTXT_, M_,N_,
+     $             MB_, NB_, RSRC_, CSRC_, LLD_
+
+      PARAMETER   (BLOCK_CYCLIC_2D=1, DLEN_=9, DT_=1, CTXT_=2,
+     $             M_=3, N_=4, MB_=5, NB_=6, RSRC_=7, CSRC_=8,
+     $             LLD_=9)
+      
+*     .. Processor variables ..
+      INTEGER M, N, MB, NB, NPROW, NPCOL, IAM, NPROCS, ICTXT 
+*     .. Local information ...
+      INTEGER MYROW, MYCOL
+*     .. Local Descriptors ...
+      INTEGER DESCA (DLEN_), LLD_A, INFO, NUMR_A, NUMC_A
+*     .. Memory Pointers ...
+      INTEGER IPA, IPW, WORKSIZ
+*     .. Output Params
+      INTEGER NOUTMAT,OUTDIM(3)
+
+* =============================================================
+*     Function Declarations
+
 *     .. External Functions ..
-      INTEGER            ICEIL, NUMROC
-      EXTERNAL           ICEIL, NUMROC
-*     ..
-*     .. Intrinsic Functions ..
-      INTRINSIC          DBLE, MAX
-*     ..
-*     .. Executable Statements ..
-*
-*     Get starting information
-*
-*     PGINFO(1) - No. of rows in matrix A
-*     PGINFO(2) - No. of cols in matrix A 
-*     PGINFO(3) - No. of rows in matrix B 
-*     PGINFO(4) - No. of cols in matrix B 
-*     PGINFO(5) - Row Block size of matrix A
-*     PGINFO(6) - Col Block size of matrix A
-*     PGINFO(7) - No. of process rows in the process grid - Row Block Size
-*     PGINFO(8) - No. of process cols in the process grid - Col Block Size
-*     PGINFO(9) - Function ID 
+      INTEGER NUMROC
+      EXTERNAL NUMROC
 
-      CALL BLACS_PINFO( IAM, NPROCS )
+*==============================================================
+*     Assign process grid values
 
-*     Number of output matrices
+      M = PGINFO (1)
+      N = PGINFO (2)
+      MB = PGINFO (5)
+      NB = PGINFO (6)
+      NPROW = PGINFO (7)
+      NPCOL = PGINFO (8)
+
       NOUTMAT = 1
-*
-        M_MAT1   = PGINFO(1)
-        N_MAT1   = PGINFO(2)
-        MB_BLK    = PGINFO(5) 
-        NB_BLK    = PGINFO(6)
-        NPROW = PGINFO(7)
-        NPCOL = PGINFO(8)        
 
-        NOUT = 6
-        N = PGINFO(1)
-*
-*     Define process grid
-*
-      CALL BLACS_GET( -1, 0, ICTXT )
-      CALL BLACS_GRIDINIT( ICTXT, 'Row-major', NPROW, NPCOL )
-      CALL BLACS_GRIDINFO( ICTXT, NPROW, NPCOL, MYROW, MYCOL )
-*
-*     Go to bottom of process grid loop if this case doesn't use my
-*     process
-*
-      IF( MYROW.GE.NPROW .OR. MYCOL.GE.NPCOL )
-     $   GO TO 20
-*
-      NP    = NUMROC( M_MAT1, MB_BLK, MYROW, 0, NPROW )
+*      PRINT *, 'Initialization successful'
+*==============================================================
+*     Set up processes and memory
 
-      NQ    = NUMROC( N_MAT1, NB_BLK, MYCOL, 0, NPCOL )
+      CALL BLACS_PINFO ( IAM, NPROCS )
 
-*
-*     Initialize the array descriptor for the matrix A and B
-*
-      CALL DESCINIT(DESCA, M_MAT1, N_MAT1, MB_BLK, NB_BLK, 0, 0,
-     $        ICTXT, MAX(1, NP ),INFO )
+*     Define Process Grid
+      CALL BLACS_GET ( -1, 0, ICTXT ) 
+      CALL BLACS_GRIDINIT ( ICTXT, 'Row-major', NPROW, NPCOL )
+      CALL BLACS_GRIDINFO ( ICTXT, NPROW, NPCOL, MYROW, MYCOL )
 
-*
-*     Assign pointers into MEM for SCALAPACK arrays, A is
-*     allocated starting at position MEM( 1 )
-*
+*      PRINT *, 'BLACS Initialization successful'
+*     Do not perform anything is not part of process grid
+      IF ( MYROW.GE.NPROW .OR. MYCOl.GE.NPCOL)
+     $    GO TO 20
+
+* =============================================================
+*     Initialize the array descriptors
+
+*     Leading dimension of A
+      NUMR_A =  NUMROC (M, MB, MYROW, 0, NPROW)    
+      NUMC_A =  NUMROC (N, NB, MYCOL, 0, NPCOL) 
+      
+*     .. get LLD_A .. leading dimension of A
+      LLD_A = MAX (1, NUMR_A)
+
+      CALL DESCINIT ( DESCA, M, N, MB, NB, 0,0, ICTXT, LLD_A, INFO)
+      
+      
+*      PRINT *, 'DESC Initialization successful'
+* ================================================================
+
+*     Assign Pointers into MEM for scalapack arrays
+
       IPA = 1
-      IPW = IPA + DESCA( LLD_ )*NQ
-  
-      WORKSIZ = NB_BLK
-*
-*     Check for adequate memory for problem size
-*
-      INFO = 0
-      IF( IPW+WORKSIZ.GT.MEMSIZ ) THEN
-*         IF( IAM.EQ.0 )
-          WRITE( NOUT, FMT = 9998 ) IAM, 'test', ( IPW+WORKSIZ )*DBLESZ,
-     $                              MEMSIZ*DBLESZ
-    
-         INFO = 1
-      END IF
-*
-*     Check all processes for an error
-*
-      CALL IGSUM2D( ICTXT, 'All', ' ', 1, 1, INFO, 1, -1, 0 )
-      IF( INFO.GT.0 ) THEN
-         IF( IAM.EQ.0 )
-     $      WRITE( NOUT, FMT = 9999 ) 'MEMORY'
-         GO TO 10
-      END IF
-*
-*     Read from GLOBALMATRIX  and distribute matrices A and B
-*
-      CALL CRDistData( MEM( IPA ), DESCA, MEM( IPW ) )
+      IPW = IPA + DESCA(LLD_) * NUMC_A
 
-*
-**********************************************************************
-*     Call ScaLAPACK PDPOTRI routine
-**********************************************************************
-*
-      CALL PDPOTRI( 'U', M_MAT1, MEM( IPA ), 1, 1, DESCA, INFO )
+      WORKSIZ = MAX ( MB, NB)
+      
+*      PRINT *, 'Pointer assigning successful'
+* ================================================================
+*     Get the optimum working size by doing a workspace query
 
+      IF ( IPW + WORKSIZ -1 .GT.MEMSIZ ) THEN
+               PRINT *, 'NOT ENOUGH MEMORY .. Exiting ..', MEMSIZ 
+     $             , IPW + WORKSIZ 
+            GO TO 20
+      ENDIF
+
+*      PRINT *, 'Dry run successful'
+* =================================================================
+*     Distribute the Input Matrix
+
+      CALL CRDistData ( MEM(IPA), DESCA, MEM(IPW))
+
+*      PRINT *, 'Distribution  successful'
+* =================================================================
+*     Call PDPOTRF function
+
+      CALL PDPOTRI ('U',M,MEM (IPA),1,1,DESCA,INFO)
+
+*      PRINT *, 'Chol2inv computation  successful'
+* ================================================================
+*     Collect Result
+*
       IF (IAM.EQ.0) THEN
+
 *         Send number of output matrices to PA
           CALL CRSendIntToPA(NOUTMAT, 1, 202)
 
 *         Send the dimensions of the output matrix to PA
           OUTDIM(1) = 0
-          OUTDIM(2) = M_MAT1 
-          OUTDIM(3) = N_MAT1
+          OUTDIM(2) = M 
+          OUTDIM(3) = N 
           CALL CRSendIntToPA(OUTDIM, 3 , 300)
       ENDIF
-*
-      CALL CRCollectData(M_MAT1, N_MAT1, MEM( IPA ), 1, 1, DESCA,
+*    
+      CALL CRCollectData( M, N, MEM( IPA ), 1,1,DESCA,
      $                MEM( IPW ) )
+*
 
-*
-*
-   10 CONTINUE
-*
-      CALL BLACS_GRIDEXIT( ICTXT )
-*
+*      PRINT *, 'Chol2inv result collection  successful'
+* ==================================================================
+*     Exit the Grid
    20 CONTINUE
-*
-*      IF (IAM.NE.0) THEN
-*            CALL BLACS_EXIT( 0 )
-*      ENDIF
-*
- 9999 FORMAT( 'Bad ', A6, ' parameters: going on to next test case.' )
- 9998 FORMAT( I4, ' Unable to perform ', A, ': need TOTMEM of at least',
-     $        I11, '(Only have ', I11, ')' )
- 9997 FORMAT( 'END OF TESTS.' )
 
-*     End of CALLPDGEQRF
+      CALL BLACS_GRIDEXIT ( ICTXT)
+
+*      PRINT *, 'Exiting BLACS grid  successful'
 
       RETURN
-
+*
       END

@@ -1,7 +1,8 @@
-/*===========================================================================
- *           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
+/*======================================================================
+ *           R-ScaLAPACK version 0.4.x:  ScaLAPACK interface to R
  *              Oak Ridge National Laboratory, Oak Ridge TN.
- *      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
+ *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+ *                            Srikanth Yoginath.
  *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
  *                 Computer Science and Mathematics Division
  *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
@@ -20,12 +21,12 @@
  * purpose.  This software is provided ``as is'' without express or
  * implied warranty.
  *
- * R-ScaLAPACK (http://www.aspect-sdm.org/R-ScaLAPACK) was funded
+ * RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
  * as part of the Scientific Data Management Center
  * (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
  * Scientific Discovery through Advanced Computing (DOE SciDAC) program
  * (http://www.scidac.org ). 
-=============================================================================*/
+=========================================================================*/
 #ifndef _RSCALAPACK_H_
 #define _RSCALAPACK_H_
 #define USE_RINTERNALS
@@ -51,15 +52,18 @@
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
 void F77_NAME(blacs_pinfo_)(int *pid, int *nprocs);
+void F77_NAME(blacs_get_)(int *,int *, int *);
 void F77_NAME(blacs_exit_)(int *ipExitFlag);
 int F77_NAME(numroc)(int *, int *, int *, int *, int *);
+int F77_NAME(indxg2p)(int *, int *, int *, int *, int *);
 
-void F77_NAME(callpdgesv)(int *, double *, int *);
-void F77_NAME(callpdgesvd)(int *, double *, double *, int *);
+void F77_NAME(callpdgesv) (int *, double *, int *);
+void F77_NAME(callpdgesvd)(int *, double *, int *);
 void F77_NAME(callpdpotrf)(int *, double *, int *);
-void F77_NAME(callpdgeqrf)(int *, int *, double *, int *, double *);
-void F77_NAME(callpdsyevd)(int *, double *);
+void F77_NAME(callpdgeqrf)(int *, double *, int *);
+void F77_NAME(callpdsyevd)(int *, double *, int *);
 void F77_NAME(callpdpotri)(int *, double *, int *);
+void F77_NAME(callpdgemm) (int *, double *, int *);
 
 SEXP CR_Exec();
 int CR_InitializeEnv(int *myrank, int *nprocs);
@@ -72,11 +76,12 @@ void CR_SendVectorToPA (int *ib, int *ia, double *work, int *mb);
 void CR_SendIntToPA(int *, int *, int *);
 void CR_SendDoubleToPA(double *, int *, int *);
 
-int CRSF_qr(int dim[], int myRank);
-int CRSF_chol(int dim[], int myrank);
-int CRSF_chol2inv(int dim[], int myrank);
-int CRSF_eigen(int dim[], int myrank);
-int CRSF_solve(int dim[], int myrank);
-int CRSF_svd(int dim[], int myrank);
+int CRSF_qr (int dim[], int myRank);
+int CRSF_chol (int dim[], int myrank);
+int CRSF_chol2inv (int dim[], int myrank);
+int CRSF_eigen (int dim[], int myrank);
+int CRSF_solve (int dim[], int myrank);
+int CRSF_svd (int dim[], int myrank);
+int CRSF_multiply (int dim[], int myrank);
 
 #endif

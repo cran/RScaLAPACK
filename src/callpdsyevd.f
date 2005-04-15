@@ -1,7 +1,8 @@
-* =======================================================================
-*           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
+* ====================================================================
+*           R-ScaLAPACK version 0.4.x:  ScaLAPACK interface to R
 *              Oak Ridge National Laboratory, Oak Ridge TN.
-*      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
+*        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+*                            Srikanth Yoginath.
 *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
 *                 Computer Science and Mathematics Division
 *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
@@ -20,12 +21,12 @@
 * purpose.  This software is provided ``as is'' without express or
 * implied warranty.
 *
-* R-ScaLAPACK (http://www.aspect-sdm.org/R-ScaLAPACK) was funded
+* RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
 * as part of the Scientific Data Management Center
 * (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
 * Scientific Discovery through Advanced Computing (DOE SciDAC) program
 * (http://www.scidac.org ). 
-* ========================================================================
+* ======================================================================
 *     Based on:
 *
 *     -- ScaLAPACK example code --
@@ -35,172 +36,175 @@
 *     Written by Antoine Petitet, August 1995 (petitet@cs.utk.edu)
 *
 * ==============================================================================
-
-      SUBROUTINE CALLPDSYEVD ( PGINFO, RETVAL)
-      INTEGER  PGINFO(*)
-      DOUBLE PRECISION RETVAL (*)
-
-*     Purpose:
-*     ========
-*     This subroutine computes the eigen values and eigen vectors for a given 
-*     symmetric square matrix by calling the ScaLAPACK routine PDSYEVD. 
-*     The computed result is returned back.
+       
+      SUBROUTINE CALLPDSYEVD (PGINFO, MEM, MEMSIZ)
 *
-* ===============================================================================
-*
+      INTEGER PGINFO(9)
+      DOUBLE PRECISION MEM (*)
+      INTEGER MEMSIZ
+
+* ==============================================================
+*     Variable Declaration
+
 *     .. Array Descriptor Parameters ..
-     
-      INTEGER   BLOCK_CYCLIC_2D, CSRC_, CTXT_, DLEN_, DT_,
-     $            LLD_, MB_, NB_, N_, RSRC_
+      INTEGER BLOCK_CYCLIC_2D, DLEN_, DT_, CTXT_, M_,N_,
+     $             MB_, NB_, RSRC_, CSRC_, LLD_
 
-      PARAMETER     (BLOCK_CYCLIC_2D = 1, DLEN_ = 9, DT_ = 1,
-     $              CTXT_ = 2, M_ = 3, N_ = 4, MB_ = 5, NB_ = 6,
-     $              RSRC_ = 7, CSRC_ = 8, LLD_ =  9 )
-*
-*     .. Miscellaneous parameters ..
-      DOUBLE PRECISION   ONE, ZERO
-      PARAMETER          ( ONE = 1.0D+0, ZERO = 0.D0 )
-*
-*     .. I/O Parameters ..
-      INTEGER        NIN, NSTDOUT
-      PARAMETER     ( NIN =11, NSTDOUT = 6 )
-*
-*     .. Memory Parameters ..
-      INTEGER       DBLESZ, INTGSZ, MEMSIZ, TOTMEM, MMAX, NMAX
-      PARAMETER     ( DBLESZ = 8, INTGSZ = 4, TOTMEM = 128000000,
-     $                MEMSIZ = TOTMEM / DBLESZ,
-     $                MMAX = 7500, NMAX = 1102 )
-*
-*    .. Processor variables ..
-      INTEGER        NP, NPROW, NPCOL, MB, NB, NB2
-*
-*    .. Local Scalars ..
-      INTEGER        IAM, ICTXT, INFO, IPA, IPW,IPZ,IPWORK,IPIWORK,
-     $               RET_SUBS,MYCOL, MYROW, M, N, NROWA, IZ, JZ, 
-     $               IA, JA, LWORK, LIWORK, TRILWMIN, NCOLZ, TEMP,
-     $               MYMEMSIZ, WORKSIZ, NOUTMAT
-                        
+      PARAMETER   (BLOCK_CYCLIC_2D=1, DLEN_=9, DT_=1, CTXT_=2,
+     $             M_=3, N_=4, MB_=5, NB_=6, RSRC_=7, CSRC_=8,
+     $             LLD_=9)
+      
+*     .. Processor variables ..
+      INTEGER M, N, MB, NB, NPROW, NPCOL, IAM, NPROCS, ICTXT 
+*     .. Local information ...
+      INTEGER MYROW, MYCOL
+*     .. Local Descriptors ...
+      INTEGER DESCA (DLEN_), DESCZ(DLEN_),
+     $             LLD_A, LLD_Z, INFO, NUMR_A, NUMC_A, NUMC_Z, LWORK,
+     $             IZ, JZ, IA, JA, LIWORK, NP, NQ, TRILWMIN             
+*     .. Memory Pointers ...
+      INTEGER IPA, IPW, IPZ, IPWORK, IPIWORK, TEMP
+*     .. Output Params
+      INTEGER NOUTMAT,OUTDIM(3)
 
-*
-*    .. Local Arrays ..
-      INTEGER       DESCA ( DLEN_ ),  DESCZ (DLEN_), OUTDIM(3) 
-      DOUBLE PRECISION   MEM ( MEMSIZ ) 
-*
-*    .. Local Scalars ..
-*      INTEGER      IZ, JZ, IA, JA, NCOLZ, NPP, 
-*     $              NQQ, TRILWMIN
-*    ..
-*    .. External Subroutines ..
-      EXTERNAL      BLACS_EXIT, BLACS_GET, BLACS_GRIDEXIT, 
-     $              BLACS_GRIDINFO, BLACS_GRIDINIT, BLACS_PINFO,
-     $              DESCINIT, PDSYEVD, CRDistData, CRCollectData
+* =============================================================
+*     Function Declarations
 
-*    ..
-*    .. External Functions ..
-      INTEGER       NUMROC, INDXL2G
-      DOUBLE PRECISION   PDLANGE
-      EXTERNAL      NUMROC, PDLANGE, INDXL2G
-*
-*     .. Intrinsic Functions ..
-      INTRINSIC          DBLE, MAX
-*    ..
+*     .. External Functions ..
+      INTEGER NUMROC
+      EXTERNAL NUMROC
+
+*==============================================================
+*     Assign process grid values
+
+      M = PGINFO (1)
+      N = PGINFO (2)
+      MB = PGINFO (5)
+      NB = PGINFO (6)
+      NPROW = PGINFO (7)
+      NPCOL = PGINFO (8)
+
+      NOUTMAT = 2
+
+*      PRINT *, 'Initialization successful'
 
       
-       RET_SUBS =1
-       NOUTMAT =2
+*==============================================================
+*     Set up processes and memory
 
-       M = PGINFO(1) 
-       N = PGINFO(2) 
-       MB = PGINFO (5) 
-       NB = PGINFO(6) 
-       NPROW = PGINFO (7)
-       NPCOL = PGINFO (8)
-       
-*    ..
-*    .. Executable Statements ..
-*
-*    .. Set up processes and memory
-      CALL BLACS_PINFO ( IAM, NP )
-*
-*    .. Define Process Grid ..
-*
-      CALL BLACS_GET ( -1, 0, ICTXT )
+      CALL BLACS_PINFO ( IAM, NPROCS )
+
+*     Define Process Grid
+      CALL BLACS_GET ( -1, 0, ICTXT ) 
       CALL BLACS_GRIDINIT ( ICTXT, 'Row-major', NPROW, NPCOL )
       CALL BLACS_GRIDINFO ( ICTXT, NPROW, NPCOL, MYROW, MYCOL )
-*
-*     .. Do not perform anything if not part of the process grid ..
-*
+
+*      PRINT *, 'BLACS Initialization successful'
+*     Do not perform anything is not part of process grid
       IF ( MYROW.GE.NPROW .OR. MYCOl.GE.NPCOL)
      $    GO TO 20
-*
-      NROWA = NUMROC ( M, MB, MYROW, 0, NPROW )
-      NCOLA = NUMROC ( N, NB, MYCOL, 0, NPCOL )
 
+* =============================================================
+*     Initialize the array descriptors
+
+*     Leading dimension of A
+      NUMR_A =  NUMROC (M, MB, MYROW, 0, NPROW)    
+      NUMC_A =  NUMROC (N, NB, MYCOL, 0, NPCOL) 
+      
       IZ = 1
       JZ = 1
-      IA = 1 
-      JA = 1 
+      IA = 1
+      JA = 1
 
-      NCOLZ = NUMROC ( JZ + N - 1, NB, MYCOL, 0, NPCOL )
-      TRILWMIN = 3*N + MAX( NB*( NROWA+1 ), 3*NB )
-      LWORK = MAX( 1 + 6*N + 2*NROWA*NCOLA, TRILWMIN ) + 2*N
+*      NP = NUMROC ( N, NB, MYROW, 0, NPROW )
+*      NQ = NUMROC ( N, NB, MYCOL, 0, NPCOL )
+*      TRILWMIN = 3 * N + MAX (NB * ( NP +1 ), 3 * NB)
+*      TEMP = MAX ( 1 + 6*N + 2*NP*NQ , TRILWMIN) + 2*N
+
+      NUMC_Z = NUMROC ( JZ+N-1, NB, MYCOL, 0, NPCOL)
       LIWORK = 7*N + 8*NPCOL + 2
 
-*
-*    .. Initialize the array descriptors for A and Z ..
-*
-      CALL DESCINIT ( DESCA, M, N, MB, NB, 0, 0, ICTXT, MAX (1,NROWA),
-     $              INFO)
-      CALL DESCINIT ( DESCZ, M, N, MB, NB, 0, 0, ICTXT, MAX(1,NROWA),
-     $              INFO)
-*
-*    .. Assign Pointers into MEM for SCALAPACK arrays, A is
-*    .. allocated starting at position MEM (1)
-*
-      IPA = 1
-      IPW = IPA + DESCA ( LLD_ ) * NROWA
-      IPZ = IPW + N
-      IPWORK = IPZ + DESCZ ( LLD_ ) * NCOLZ
-      IPIWORK = IPWORK + LWORK
-      IPEXWORK = IPIWORK + LIWORK
 
-      WORKSIZ =  MAX( NB , NP )
+*     .. get LLD_A .. leading dimension of A
+      LLD_A = MAX (1, NUMR_A)
+*     .. get LLD_Z .. leading dimension of U 
+      LLD_Z = MAX (1, NUMR_A)
 
-      MYMEMSIZ = IPEXWORK + WORKSIZ
 
-      IF (MYMEMSIZ.GT.MEMSIZ) THEN
-           Print *, ' REQUIRED MEMORY COULD NOT BE ALLOCATED '
-           GO TO 20
-      ENDIF
+      CALL DESCINIT ( DESCA, M, N, MB, NB, 0,0, ICTXT, LLD_A, INFO)
       
-*
-*     Get the data from Parallel Agent  ...
-      CALL CRDistData( MEM( IPA ), DESCA, MEM( IPEXWORK ) )
-*
-*    Call PDSYEVD function
-*
+      CALL DESCINIT ( DESCZ, M, N, MB, NB, 0,0, ICTXT, LLD_Z, INFO)
+      
+*      PRINT *, 'DESC Initialization successful'
+* ================================================================
+
+*     Assign Pointers into MEM for scalapack arrays
+
+      IPA = 1
+      IPW = IPA + DESCA (LLD_) * NUMC_A
+      IPZ = IPW + N
+      IPIWORK = IPZ + DESCZ (LLD_) * NUMC_Z
+      IPWORK = IPIWORK +  LIWORK
+      
+
+*      PRINT *, 'Pointer assigning successful'
+* ================================================================
+
+*     Get the optimum working size by doing a workspace query
+
+      CALL PDSYEVD('V', 'U', N, MEM(IPA),1,1, DESCA, MEM(IPW), MEM(IPZ),
+     $         IZ,JZ, DESCZ,MEM(IPWORK), -1, 
+     $         MEM(IPIWORK), LIWORK, INFO)
+
+
+
+      IF ( INFO.EQ.0 ) THEN
+            LWORK = MEM ( IPWORK )
+*            IF ( LWORK.EQ.TEMP)
+*     $            PRINT *, 'LWORK  EQ TEMP ', LWORK, TEMP
+            
+            IF (IPWORK+LWORK-1 .GT. MEMSIZ ) THEN
+                  PRINT *, 'NOT ENOUGH MEMORY .. ', MEMSIZ 
+     $             , IPWORK + LWORK 
+                  GO TO 20
+            ENDIF
+      ELSE
+            IF ( IAM.EQ.0)
+     $             PRINT *, 'PDSYEVD DRY RUN FAILED .. 
+     $                  = ', INFO
+            GO TO 20
+      ENDIF
+
+*      PRINT *, 'Dry run successful'
+* =================================================================
+
+*     Distribute the Input Matrix
+
+      CALL CRDistData ( MEM(IPA), DESCA, MEM(IPWORK))
+
+*      PRINT *, 'Distribution  successful'
+* =================================================================
+*     Call PDSYEVD function
+
       CALL PDSYEVD('V', 'U', N, MEM(IPA),1,1, DESCA, MEM(IPW), MEM(IPZ),
      $         IZ,JZ, DESCZ,MEM(IPWORK), LWORK, 
      $         MEM(IPIWORK), LIWORK, INFO)
-*
-*    Collect Result
+        
+*      PRINT *, 'EIGEN computation  successful'
+* ================================================================
+*     Collect Result
 *
       IF ( IAM.EQ.0) THEN
 
 *         Send Parallel Agent 'number of output matrices'
           CALL CRSendIntToPA(NOUTMAT, 1, 202)
 
-          DO TEMP = 1, N 
-               RETVAL(TEMP) = MEM(IPW + TEMP-1)
-          END DO
-
           OUTDIM(1) = 1
           OUTDIM(2) = 1
           OUTDIM(3) = N 
           CALL CRSendIntToPA(OUTDIM, 3 , 300)
 
-          CALL CRSendDoubleToPA(RETVAL, N, 400)
-          RET_SUBS = TEMP
+          CALL CRSendDoubleToPA(MEM(IPW), N, 400)
       ENDIF
 
       CALL BLACS_BARRIER(ICTXT,'ALL')
@@ -214,19 +218,18 @@
       ENDIF
 
       CALL CRCollectData( M, M, MEM( IPZ ), 1,1,DESCZ,
-     $                MEM( IPEXWORK ) )
+     $                MEM( IPWORK ) )
 
-*
-*    .. EXIT THE GRID
-*
-   10 CONTINUE
 
-      CALL BLACS_GRIDEXIT( ICTXT )
-*
+*      PRINT *, 'EIGEN result collection  successful'
+* ==================================================================
+*     Exit the Grid
    20 CONTINUE
-*
-*      CALL BLACS_EXIT( 0 )
-*
-      RETURN 
+
+      CALL BLACS_GRIDEXIT ( ICTXT)
+
+*      PRINT *, 'Exiting BLACS grid  successful'
+
+      RETURN
 *
       END

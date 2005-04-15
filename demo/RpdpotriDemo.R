@@ -1,7 +1,8 @@
-#  =======================================================================
-#           R-ScaLAPACK version 0.3.x:  R interface to ScaLAPACK
+# ====================================================================
+#           R-ScaLAPACK version 0.4.x:  ScaLAPACK interface to R
 #              Oak Ridge National Laboratory, Oak Ridge TN.
-#      Authors: David Bauer, Nagiza. F. Samatova, Srikanth Yoginath
+#        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+#                            Srikanth Yoginath.
 #     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
 #                 Computer Science and Mathematics Division
 #             Oak Ridge National Laboratory, Oak Ridge TN 37831 
@@ -20,12 +21,12 @@
 # purpose.  This software is provided ``as is'' without express or
 # implied warranty.
 #
-# R-ScaLAPACK (http://www.aspect-sdm.org/R-ScaLAPACK) was funded
+# RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
 # as part of the Scientific Data Management Center
 # (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
 # Scientific Discovery through Advanced Computing (DOE SciDAC) program
 # (http://www.scidac.org ). 
-# ========================================================================
+# ======================================================================
 RpdpotriDemo <- function () {
 
 	library(RScaLAPACK)
