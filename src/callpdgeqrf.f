@@ -64,7 +64,7 @@
 *     .. Memory Pointers ...
       INTEGER IPA, IPTAU, IPWORK, LWORK, LTAU
 *     .. Output Params
-      INTEGER I,J,K,L,NOUTMAT,OUTDIM(3), RDIM, ITER
+      INTEGER I,J,K,L,FAILFLAG,NOUTMAT,OUTDIM(3), RDIM, ITER
       INTEGER ICALLER, HISROW, HISCOL
       DOUBLE PRECISION RANK
 
@@ -86,6 +86,7 @@
       NPCOL = PGINFO (8)
 
       NOUTMAT = 3
+      FAILFLAG = 0 
 
 *      PRINT *, 'Initialization successful'
 *==============================================================
@@ -153,14 +154,28 @@
             IF (IPWORK+LWORK-1 .GT. MEMSIZ ) THEN
                   PRINT *, 'NOT ENOUGH MEMORY ..myRank',IAM, MEMSIZ 
      $             , IPWORK + LWORK
-                  GO TO 20
+                   FAILFLAG = 1
+*                  GO TO 20
             ENDIF 
       ELSE
             IF ( IAM.EQ.0)
      $             PRINT *, 'PDGEQRF DRY RUN FAILED .. 
      $                  = ', INFO
-            GO TO 20
+             FAILFLAG = 1
+*            GO TO 20
       ENDIF
+
+*      PRINT *, 'Check Fail Flag'
+
+      CALL CRCheckFailFlag (FAILFLAG)
+
+      IF ( IAM.EQ.0)
+     $      CALL CRSendIntToPA( FAILFLAG, 1, 1202 )
+
+      IF ( FAILFLAG.EQ.1 )
+     $     GO TO 20
+
+
 
 *      PRINT *, 'Dry run successful'
 * =================================================================

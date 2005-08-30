@@ -1,9 +1,8 @@
-# Process this file with autoconf to produce a configure script.
+dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(DESCRIPTION)
-#AC_PROG_CC
-#AC_PROG_F77
 
+dnl AC_CONFIG_SRCDIR([src/CRDriver.c])
 : ${R_HOME=`R RHOME`}
 if test -z "${R_HOME}"; then
    echo "could not determine R_HOME"
@@ -12,169 +11,359 @@ fi
 
 CC=`"${R_HOME}/bin/R" CMD config CC`
 F77=`"${R_HOME}/bin/R" CMD config F77`
-CFLAGS=`"${R_HOME}/bin/R" CMD config CFLAGS`
+RCFLAGS=`"${R_HOME}/bin/R" CMD config CFLAGS`
+CFLAGS="${RCFLAGS} ${CFLAGS}"
 
-
-AC_ARG_WITH(blacs,
-[   --with-blacs=${HOME}/BLACS          Location of BLACS library.],
-[   if test "${withval}" = no; then
-        supply_blacs=no
-    else
-        supply_blacs=yes
-        BLACS_ROOT=${withval}
-    fi  ]
-)
-
-AC_SEARCH_LIBS(openpty, [util])
-AC_SEARCH_LIBS(pow, [m])
-
-
-# Bdef.h -- Status ??
+dnl Checks for programs
+supply_mpi=no
+supply_blacs=no
+supply_blas=no
+supply_scalapack=no
+MPI_LAM=no
+MPI_MPICH=no
+ATLAS_BLAS=yes
 
 AC_ARG_WITH(mpi,
-[   --with-mpi=/usr/local          Location of MPI library.],
-[   if test "${withval}" = no; then
-        supply_mpi=no
-    else
-        supply_mpi=yes
-        MPI_ROOT=${withval}
-    fi  ]
-)
+[  --with-mpi=/usr/local	     Location of MPI_HOME],
+[MPI_HOME=${withval}
+ supply_mpi=yes
+ AC_MSG_NOTICE(MPI_HOME=${MPI_HOME} .. is set)
+])
+
+AC_ARG_WITH(blacs,
+[  --with-blacs=/usr/local/lib	     Location of BLACS libraries],
+[BLACS_LIB=${withval}
+ supply_blacs=yes
+ AC_MSG_NOTICE(BLACS_LIB=${BLACS_LIB} .. is set)
+])
 
 
-AC_CHECK_HEADER(mpi.h, [ MPI_INCLUDE="" ],
-[   if test "${supply_mpi}" = yes; then
-        echo "Looking for mpi.h in ${MPI_ROOT}/include"
-        if test -f "${MPI_ROOT}/include/mpi.h"; then
-            echo "Found in ${MPI_ROOT}/include"
-            MPI_INCLUDE="-I${MPI_ROOT}/include"
-		elif test -f "${MPI_ROOT}/mpi.h"; then
-			echo "Found in ${MPI_ROOT}"
-			MPI_INCLUDE="-I${MPI_ROOT}"
-        else
-            echo "Cannot find mpi header file"
-            echo "Please check if --with-mpi=${MPI_ROOT} is right"
-            exit 1
-        fi
-    else
-        echo "Try to find mpi.h ..."
-        if test -f "/usr/include/mpi.h"; then
-		echo "Found in /usr/include"
-		MPI_INCLUDE="/usr/include"
-	elif test -f "/usr/local/include/mpi.h"; then
-		echo "Found in /usr/local/include"
-		MPI_INCLUDE="-I/usr/local/include"
-	elif test -f "${HOME}/include/mpi.h"; then
-		echo "Found in ${HOME}/include"
-		MPI_INCLUDE="-I${HOME}/include"
-	elif test -f "/usr/include/lam/mpi.h"; then
-		echo "Found in /usr/include/lam"
-		MPI_INCLUDE="-I/usr/include/lam"
+AC_ARG_WITH(blas,
+[  --with-blas=/usr/local/lib	     Location of BLAS libraries],
+[BLAS_LIB=${withval}
+ supply_blas=yes
+ AC_MSG_NOTICE(BLAS_LIB=${BLAS_LIB} .. is set)
+])
+
+
+AC_ARG_WITH(scalapack,
+[  --with-scalapack=/usr/local/lib	 Location of SCALAPACK library],
+[SCALAPACK_LIB=${withval}
+ supply_scalapack=yes
+ AC_MSG_NOTICE(SCALAPACK_LIB=${SCALAPACK_LIB} .. is set)
+])
+
+dnl Checks for libraries
+
+AC_LANG(C)
+
+if test "${supply_mpi}" = yes; then
+	LDFLAGS="-L${MPI_HOME}/lib ${LDFLAGS}"
+fi
+
+if test "${supply_blas}" = yes; then
+	LDFLAGS="-L${BLAS_LIB}/lib ${LDFLAGS}"
+fi
+
+if test "${supply_blacs}" = yes; then
+	LDFLAGS="-L${BLACS_LIB} ${LDFLAGS}"
+fi
+
+if test "${supply_scalapack}" = yes; then
+	LDFLAGS="-L${SCALAPACK_LIB} ${LDFLAGS}"
+fi
+
+AC_CHECK_LIB(pthread, pthread_atfork,[
+	PALIBS="-lpthread"
+	],[
+	echo "pThread Not found"])
+
+AC_MSG_CHECKING([for LAM-MPI])
+
+if test "${supply_mpi}" = yes; then
+	AC_MSG_CHECKING([LAM-MPI Libraries at ${MPI_HOME}])
+
+	
+	if test -d ${MPI_HOME}/lib; then
+		AC_MSG_NOTICE(LAM-MPI lib detected @ ${MPI_HOME}..)
+
+		if test -f ${MPI_HOME}/lib/liblam.a; then
+			PALIBS="-llam ${PALIBS}"
+			MPI_LAM=yes
+		else
+			AC_MSG_NOTICE(LAM-liblam.a not found)
+			MPI_LAM=no
+		fi
+		
+		if test -f ${MPI_HOME}/lib/libmpi.a; then
+			PALIBS="-lmpi ${PALIBS}"
+			MPI_LAM=yes
+		else
+			AC_MSG_NOTICE(LAM-libmpi.a not found)
+			MPI_LAM=no
+		fi
+		
+		if test -f ${MPI_HOME}/lib/liblamf77mpi.a; then
+			LIBS="-llamf77mpi ${PALIBS} ${LIBS}"
+			MPI_LAM=yes
+		else
+			AC_MSG_NOTICE(LAM-liblamf77mpi.a not found)
+			MPI_LAM=no
+		fi
+		
 	else
-		MPI_INCLUDE=`locate "mpi.h" | grep "/mpi.h" | grep "[[Ll]][[Aa]][[Mm]]" | head -n 1`
-		echo "${MPI_INCLUDE}"
-		if test -f "${MPI_INCLUDE}"; then
-			MPI_INCLUDE=`echo ${MPI_INCLUDE} | sed "s/\(.*\/\)[[^\/]]*/\1/"`
-			echo "Found in ${MPI_INCLUDE}"
-			MPI_INCLUDE="-I${MPI_INCLUDE}"
-	        else
-	            echo "Cannot find mpi header file."
-	            echo "Please use --with-mpi=/path/to/mpi"
-	            exit 1
+		AC_MSG_NOTICE(LAM-MPI libraries were not detected @ ${MPI_HOME} ..)
+		MPI_LAM=no
+	fi
+else
+	AC_MSG_CHECKING([LAM-MPI Libraries in the system])
+
+	AC_SEARCH_LIBS(lam_rtrstore,mpi lamf77mpi lam,[
+		AC_CHECK_LIB(lam, lam_rtrstore,[
+			LIBS="-llam ${PALIBS} ${LIBS}"	
+			PALIBS="-llam ${PALIBS}"	
+			MPI_LAM=yes
+			],[
+			AC_MSG_NOTICE(LAM-liblam.a not found)
+			MPI_LAM=no
+			])
+		AC_CHECK_LIB(mpi, MPI_Comm_spawn,[
+			PALIBS="-lmpi ${PALIBS}"
+			LIBS="-lmpi ${LIBS}"
+			MPI_LAM=yes
+			],[
+			AC_MSG_NOTICE(LAM-libmpi.a not found)
+			MPI_LAM=no
+			])
+		AC_CHECK_LIB(lamf77mpi, mpi_comm_create__,[
+			LIBS="-llamf77mpi ${LIBS}"
+			MPI_LAM=yes
+			],[
+			AC_MSG_NOTICE(LAM-liblamf77mpi.a not found)
+			MPI_LAM=no
+			])
+		],[
+		AC_MSG_NOTICE([Lam-Libraries not found ..])
+		MPI_LAM=no
+		]
+	)
+fi
+
+if test "${MPI_LAM}" = no; then
+	AC_MSG_CHECKING([for MPICH])
+
+	if test "${supply_mpi}" = yes; then
+		AC_MSG_CHECKING([MPI Libraries in ${MPI_HOME}])
+		
+		if test -d ${MPI_HOME}/lib; then
+			AC_MSG_NOTICE(MPICH2-lib detected @ ${MPI_HOME}..)
+
+				
+			if test -f ${MPI_HOME}/lib/libmpich.a; then
+				PALIBS="-lmpich ${PALIBS}"
+				MPI_MPICH=yes
+			else
+				AC_MSG_NOTICE(libmpich.a not found)
+				MPI_MPICH=no
 			fi
-        fi
-    fi
-]
-)
+
+			if test -f ${MPI_HOME}/lib/libfmpich.a; then
+				LIBS="-lfmpich ${PALIBS} ${LIBS}"
+				MPI_MPICH=yes
+			else
+				AC_MSG_NOTICE(libfmpich.a not found)
+				MPI_MPICH=no
+			fi
+
+		else
+			AC_MSG_NOTICE("MPICH2 libraries were not detected @ ${MPI_HOME} ..")
+			MPI_MPICH=no
+		fi
+	else
+
+		AC_SEARCH_LIBS(MPI_Comm_spawn, mpich fmpich,[
+			AC_CHECK_LIB(mpich, MPI_Intercomm_merge,[
+				PALIBS="-lmpich"	
+dnl				LIBS="-lmpich ${LIBS}"	
+				MPI_MPICH=yes
+				],[
+				AC_MSG_ERROR(libmpich.a not found,-1)
+				])
+			
+			AC_CHECK_LIB(fmpich, mpi_comm_create__,[
+				LIBS="-lfmpich ${LIBS}"
+				MPI_MPICH=yes
+				],[
+					AC_MSG_ERROR(libfmpich.a not found,-1)
+				])
+				],[
+				AC_MSG_NOTICE([MPICH-Libraries not found ..])
+				MPI_MPICH=no
+			]
+		)
+	fi		
+fi
+
+if test "${MPI_LAM}" = no && test "${MPI_MPICH}" = no; then
+	AC_MSG_ERROR(Neither MPICH nor LAM found ..exiting, -1)
+fi
+
+if test "${supply_blas}" = yes || test "${supply_scalapack}" = yes; then
 
 
-# CC=${F77}
-AC_CHECK_LIB(pthread, pthread_atfork, [], [
-	AC_CHECK_LIB(pthreads, pthread_atfork , [], [
-		CFLAGS="${CFLAGS} -pthread"
-		AC_CHECK_FUNC(pthread_create, [], [
-			echo "Error!  libpthread is required."
-			exit -1
+	if test -f ${BLAS_LIB}/libatlas.a; then
+		LIBS="-latlas ${LIBS}"
+	elif test -f ${SCALAPACK_LIB}/libatlas.a; then
+		LIBS="-latlas ${LIBS}"
+	else
+		AC_MSG_NOTICE(libatlas.a not found)
+		ATLAS_BLAS=no
+	fi
+
+	if test "${ATLAS_BLAS}" = yes; then	
+		if test -f ${BLAS_LIB}/libf77blas.a; then
+			LIBS="-lf77blas ${LIBS}"
+
+		elif test -f ${SCALAPACK_LIB}/libf77blas.a; then
+			LIBS="-lf77blas ${LIBS}"
+
+		else
+			AC_MSG_ERROR(libf77blas.a not found,-1)
+		fi
+	else
+		if test -f ${BLAS_LIB}/libblas.a; then
+			LIBS="-lblas ${LIBS}"
+	
+		elif test -f ${SCALAPACK_LIB}/libblas.a; then
+			LIBS="-lblas ${LIBS}"
+
+		else
+			AC_MSG_ERROR(libblas.a not found,-1)
+		fi
+	fi
+
+else
+	AC_CHECK_LIB(atlas, ATL_ztrsm,[ 
+		LIBS="-latlas ${LIBS}"],
+		[AC_MSG_NOTICE(libatlas.a not found)
+		ATLAS_BLAS=no])
+		 
+	if test "${ATLAS_BLAS}" = yes; then	
+		AC_LANG_PUSH(Fortran 77)
+		AC_CHECK_LIB(f77blas, ztrsm,[
+			LIBS="-lf77blas ${LIBS}"], [
+			AC_MSG_ERROR(libf77blas.a not found,-1)
 		])
-	])
-])
-AC_CHECK_FUNC(MPI_Comm_spawn, [], [
-	AC_CHECK_LIB(mpi, MPI_Comm_spawn, [], [
-		AC_CHECK_LIB(lam, lam_rtrstore, [], [
-		 	echo "Error!  liblam is required (mpich won't work)."
-			exit -1
+		AC_LANG_POP(Fortran 77)
+	else
+		AC_LANG_PUSH(Fortran 77)
+		AC_CHECK_LIB(blas, ztrsm,[
+			LIBS="-lf77blas ${LIBS}"], [
+			AC_MSG_ERROR(libf77blas.a not found,-1)
 		])
-		AC_CHECK_LIB(mpi, MPI_Comm_spawn_multiple, [], [
-			echo "Error!  libmpi is required."
-			exit -1
+		AC_LANG_POP(Fortran 77)
+	fi
+fi
+
+if test "${supply_blacs}" = yes || test "${supply_scalapack}" = yes; then
+
+	if test -f ${BLACS_LIB}/libblacs.a; then
+		LIBS="-lblacs ${LIBS}"
+
+	elif test -f ${SCALAPACK_LIB}/libblacs.a;  then
+		LIBS="-lblacs ${LIBS}"
+
+	else
+		AC_MSG_ERROR(libblacs.a not found,-1)
+	fi
+
+	if test -f ${BLACS_LIB}/libblacsCinit.a; then
+		LIBS="-lblacsCinit ${LIBS}"
+
+	elif test -f ${SCALAPACK_LIB}/libblacsCinit.a;  then
+		LIBS="-lblacsCinit ${LIBS}"
+
+	else
+		AC_MSG_ERROR(libblacsCinit.a not found,-1)
+	fi
+
+	if test -f ${BLACS_LIB}/libblacsF77init.a; then
+		LIBS="-lblacsF77init ${LIBS}"
+
+	elif test -f ${SCALAPACK_LIB}/libblacsF77init.a;  then
+		LIBS="-lblacsF77init ${LIBS}"
+
+	else
+		AC_MSG_ERROR(libcblacsF77init.a not found,-1)
+	fi
+else
+	AC_CHECK_LIB(blacs, Cblacs_gridexit,[], [
+		AC_MSG_ERROR(libblacs.a not found,-1)
 		])
-		AC_CHECK_LIB(lamf77mpi, mpi_comm_create__, [], [
-			echo "Error!  liblamf77mpi is required (part of lam installation)."
-			exit -1
+
+	AC_CHECK_LIB(blacsCinit, Cblacs_pinfo,[],[
+		AC_MSG_ERROR(libblacsCinit.a not found,-1)
 		])
-	])
-])
-CC_SAVE=${CC}
-CC=${F77}
-AC_CHECK_LIB(atlas, ATL_ztrsm)
-AC_CHECK_LIB(f77blas, ztrsm_, [], [
-	AC_CHECK_LIB(blas, ztrsm_, [], [
-		AC_CHECK_LIB(scs, ztrsm_, [], [
-			echo "Error! No blas library found."
-			exit -1
+	
+	AC_CHECK_LIB(blacsF77init, blacs_pinfo__,[],[
+		AC_MSG_ERROR(libblacsF77init.a not found,-1)
 		])
-	])
-])
-AC_CHECK_LIB(blacs, Cblacs_gridexit, [], [
-	AC_CHECK_LIB(blacs-lam, Cblacs_gridexit, , , [-lblacsCinit-lam])
-])
-AC_CHECK_LIB(blacsCinit, Cblacs_pinfo, [ true ] , [
-	AC_CHECK_LIB(blacsCinit-lam, Cblacs_pinfo)
-])
-AC_CHECK_LIB(blacsF77init, blacs_pinfo__, [], [ 
-	AC_CHECK_LIB(blacsF77init-lam, blacs_pinfo__)
-])
 
-AC_CHECK_LIB(lapack, clacrm_,[],
-	AC_CHECK_LIB(lapack-3,clacrm_))
+fi
 
-AC_CHECK_LIB(scalapack, pdgesv_, [], [
-	AC_CHECK_LIB(scalapack-lam, pdgesv_, [], [
-		echo "Error!  libscalapack is required."
-		exit -1
-	])
-])
 
-CC=${CC_SAVE}
+if test "${supply_scalapack}" = yes; then
 
-dnl AX_CFLAGS_OPTIONS(var-name, option)
-dnl add option to var-name if $CC support it.
-AC_DEFUN(AX_CFLAGS_OPTION, [
-AC_MSG_CHECKING([whether ${CC} $2 is understood])
-AC_LANG_SAVE
-AC_LANG_C
-SAVE_CFLAGS=$CFLAGS
-CFLAGS=$2
-AC_TRY_COMPILE(,[;],AC_MSG_RESULT([yes]); $1="${$1} $2",AC_MSG_RESULT([no]))
-CFLAGS=$SAVE_CFLAGS
-AC_LANG_RESTORE
-])
+	if test -f ${SCALAPACK_LIB}/libscalapack.a; then
+		LIBS="-lscalapack ${LIBS}"
+	else
+		AC_MSG_ERROR(libscalapack.a not found,-1)
+	fi
 
-AX_CFLAGS_OPTION(OP_CFLAGS,[-Wall])
-AX_CFLAGS_OPTION(OP_CFLAGS,[-ansi])
-AX_CFLAGS_OPTION(OP_CFLAGS,[-pedantic])
-CFLAGS="${CFLAGS} ${OP_CFLAGS}"
-PKG_LIBS="${LIBS}"
-PKG_CPPFLAGS="${MPI_INCLUDE} ${BLACS_INCLUDE} ${LDFLAGS} ${CFLAGS}"
-PKG_F77FLAGS="-g"
-#PKG_CPPFLAGS="${BLACS_INCLUDE}"
+else
+	AC_LANG_PUSH(Fortran 77)
+	AC_CHECK_LIB(scalapack, pdgesv, [],[
+		AC_MSG_ERROR(libscalapack.a not found,-1)
+		])
+	AC_LANG_POP(Fortran 77)
+fi
 
-echo $PKG_CPPFLAGS
-echo $PKG_LIBS
-echo $DEFS
 
-AC_SUBST(PKG_LIBS)
-AC_SUBST(PKG_CPPFLAGS)
-AC_SUBST(DEFS)
+dnl Checks for header files
 
-AC_OUTPUT(src/Makevars R/zzz.R)
+if test "${supply_mpi}" = yes; then
+
+	if test -f ${MPI_HOME}/include/mpi.h; then
+		CFLAGS="-I${MPI_HOME}/include ${CFLAGS}"
+	fi
+	
+else
+	AC_CHECK_HEADER([mpi.h],[],[
+		AC_MSG_ERROR(mpi.h not found,-1)
+		],)
+
+fi
+
+echo "Configured Parameters ..."
+echo "LIBS = ${LIBS}"
+echo "LDFLAGS = ${LDFLAGS}"
+echo "CFLAGS = ${CFLAGS}"
+echo "PALIBS = ${PALIBS}"
+echo "...  *** ..."
+
+dnl Checks for typedefs
+dnl Checks for structures
+dnl Checks for compiler characteristics
+dnl Checks for library functions
+dnl AC_CHECK_FUNCS(MPI_Comm_spawn MPI_Intercomm_merge)
+dnl Checks for system services
+
+dnl AC_OUTPUT()
+AC_SUBST(PALIBS)
+AC_OUTPUT(src/Makefile)
+
+if test "${MPI_MPICH}" = yes; then
+	AC_OUTPUT(R/StartUpMpich2.R)
+else
+	AC_OUTPUT(R/StartUpLam.R)
+fi

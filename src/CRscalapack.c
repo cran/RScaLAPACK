@@ -36,7 +36,7 @@
 
 #define AsInt(x) (SEXP)(x)
 
-/*#define DEBUG_RSCALAPACK*/ 
+/* #define DEBUG_RSCALAPACK */
 
 #ifndef DEBUG_RSCALAPACK
 #define D_Rprintf(x)
@@ -120,6 +120,8 @@ SEXP CR_Exec() {
 
 	}	/*  Endof  while (...) */
 
+	MPI_Finalize();
+
 	return AsInt(0);
 }
 
@@ -192,12 +194,7 @@ int CR_CallScalapackFn (int *ipGridAndDims, int iMyRank) {
 			CRSF_eigen(ipGridAndDims, iMyRank);
 			break;
 		case 7:
-			/*Guru:
-			Following are the temp changes
-			Will make permament changes in the cvs later
-			*/
 			/* Matrix Multiplication */
-			/*CRSF_multiply(ipGridAndDims, iMyRank);*/
 			/*D_Rprintf(("Got every thing, Need to run multiplication alg.\n"));*/
 			CRSF_multiply(ipGridAndDims, iMyRank);
 			break;
@@ -220,7 +217,7 @@ void CR_RecvVectorFromPA( int *ib, int *ia, double *A, int *mb ){
 
 	MPI_Comm_get_parent (&parent);
 
-	MPI_Type_vector(*ia, *ib, *mb, MPI_DOUBLE,&GEMAT);
+	MPI_Type_vector(*ia, *ib, *ib, MPI_DOUBLE,&GEMAT);
 	MPI_Type_commit (&GEMAT);
 
 	MPI_Recv (A, 1, GEMAT,0 ,5000 ,parent, MPI_STATUS_IGNORE);
@@ -236,7 +233,7 @@ void CR_SendVectorToPA (int *ib, int *ia, double *work, int *mb){
 
 	MPI_Comm_get_parent (&parent);
 
-	MPI_Type_vector(*ia, *ib, *mb, MPI_DOUBLE,&GEMAT);
+	MPI_Type_vector(*ia, *ib, *ib, MPI_DOUBLE,&GEMAT);
 	MPI_Type_commit (&GEMAT);
 
 	MPI_Send ( work, 1, GEMAT, 0, 15000 , parent);
@@ -258,6 +255,14 @@ void CR_SendDoubleToPA(double *data, int *infoDim, int *tag) {
 	MPI_Comm parent;
 	MPI_Comm_get_parent (&parent);
 	MPI_Send ( data, *infoDim, MPI_DOUBLE, 0, *tag , parent);
+}
+
+
+/* Note:  CR_CheckFailFlag is translated to "crcheckfailflag__"
+ *  for Fortran compatibility */
+void CR_CheckFailFlag ( int* failFlag){
+	int myFailFlag = *failFlag;
+	MPI_Allreduce(&myFailFlag, failFlag, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD );
 }
 
 /* ****  Start CRSFs  -- Child R-ScaLAPACK Functions ****  */
@@ -442,7 +447,7 @@ int CRSF_eigen(int dim[], int iMyRank) {
 	int localSizeOfW = colOfA;
 	int sizeOfLIWORK = 7 * colOfA + 8 * NPCol +2;
 	
-	np =  F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPRow);
+	np =  F77_CALL(numroc)(&colOfA, &colBlockSize, &MyRow, ipZero, &NPRow);
 	nq =  F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
 	tRILWMIN = 3 * colOfA + max ( colBlockSize * (np +1) , 3 * colBlockSize);
 	sizeOfLWORK = max (1 + 6 * colOfA + 2*np*nq, tRILWMIN ) + 2 * colOfA;

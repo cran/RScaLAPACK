@@ -1,7 +1,7 @@
-RpdgesvDemo		Scalapack solver - Basic usage
-RpdgesvdDemo	Scalapack SVD - Basic usage
-RpdgeqrDemo		Scalapack QR - Basic usage
-RpdpotrfDemo	Scalapack Choleski Decomposition - Basic usage
-RpdpotriDemo	Scalapack Invert matrix from Choleski Decomposition - Basic Usage
-RpdsyevdDemo		Scalapack Eigen Decomposition - Basic usage
-RpdgemmDemo		Scalapack Matrix Multiplication - Basic usage
+RScaLAPACK	slaSolveDemo: Scalapack solver - Basic usage
+		slaSvdDemo: Scalapack SVD - Basic usage
+		slaQrDemo: Scalapack QR - Basic usage
+		slaCholDemo: Scalapack Choleski Decomposition - Basic usage
+		slaChol2invDemo: Scalapack Invert matrix from Choleski Decomposition - Basic Usage
+		slaEigneDemo: Scalapack Eigen Decomposition - Basic usage
+		slaMultiplyDemo:  Scalapack Matrix Multiplication - Basic usage

@@ -65,7 +65,7 @@
 *     .. Memory Pointers ...
       INTEGER IPA, IPB, IPPIV, IPWORK, WORKSIZ
 *     .. Output Params
-      INTEGER NOUTMAT,OUTDIM(3)
+      INTEGER FAILFLAG,NOUTMAT,OUTDIM(3)
 
 * =============================================================
 *     Function Declarations
@@ -87,6 +87,7 @@
       NPCOL = PGINFO (8)
 
       NOUTMAT = 1 
+      FAILFLAG = 0
 
 *      PRINT *, 'Initialization successful'
 *==============================================================
@@ -145,8 +146,20 @@
       IF (IPWORK+WORKSIZ-1 .GT. MEMSIZ ) THEN
                PRINT *, 'NOT ENOUGH MEMORY .. ', MEMSIZ 
      $              , IPWORK + WORKSIZ 
+             FAILFLAG = 1
             GO TO 20
       ENDIF
+
+*      PRINT *, 'Check Fail Flag'
+
+      CALL CRCheckFailFlag (FAILFLAG)
+
+      IF ( IAM.EQ.0)
+     $      CALL CRSendIntToPA( FAILFLAG, 1, 1202 )
+
+      IF ( FAILFLAG.EQ.1 )
+     $     GO TO 20
+
 
 *      PRINT *, 'Memory verification successful'
 * =================================================================

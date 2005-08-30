@@ -47,6 +47,7 @@
 
 #define CR_SendIntToPA crsendinttopa_
 #define CR_SendDoubleToPA crsenddoubletopa_
+#define CR_CheckFailFlag crcheckfailflag_
 
 #define max(a,b) ((a) > (b) ? (a) : (b))
 #define min(a,b) ((a) < (b) ? (a) : (b))

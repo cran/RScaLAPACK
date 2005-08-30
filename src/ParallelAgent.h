@@ -39,19 +39,37 @@
 
 #define DONT_SPAWN_R
 
-#define PC_SEND_DATA_DIM 501
+#define CHECKFAULT_TAG 1202	/* Tag used to check fault before data send  */
+#define NUMMATRICES_TAG 202	/* Tag used to number of Results to collect  */
+#define RECVRESULT_TAG 300	/* Tag used to receive results */
+#define RECVVECORMAT_TAG 400	/* Tag used to communicate, whether to receive vector or matrix*/
+
 
 #define MPINULL MPI_STATUS_IGNORE
-#define PA_RecvVectorFromCR parecvvectorfromcr_
-#define PA_SendVectorToCR pasendvectortocr_
+
+/*#define DEBUG_RSCALAPACK*/
+
+#ifndef DEBUG_RSCALAPACK
+#define D_Rprintf(x)
+#else
+#define D_Rprintf(x) Rprintf x
+#endif
 
 #define max(a,b) ((a) > (b) ? (a) : (b))
+#define min(a,b) ((a) < (b) ? (a) : (b))
+#define iceil(a,b) ((a+b-1)/b)
 
 int PA_ErrorHandler(int errcode);
 int erreturn(int errcode);
 
-void F77_NAME(padistdata)(double *, int *, int *, int *);
-void F77_NAME(pacollectdata)(double *, int *, int *, int *, int *);
+void PAdistData(double *, int *, int , int);
+void PAcollectData(double *, int *, int, int);
+
+/*
+Performance degraded with non-blocking send and receive
+void PA_SendVectorToCR (int *ib, int *ia, double *work, int *mb, int *s2rank, MPI_Request *request);
+void PA_RecvVectorFromCR (int *ib, int *ia, double *A, int *mb, int *fromRank, MPI_Request *request);
+*/
 
 void PA_SendVectorToCR (int *ib, int *ia, double *work, int *mb, int *s2rank);
 void PA_RecvVectorFromCR (int *ib, int *ia, double *A, int *mb, int *fromRank);
@@ -67,5 +85,6 @@ SEXP PA_RecvResult(int []);
 
 int PA_GetTwoDims(SEXP , int *);
 int PA_SetDim(SEXP ,int , int *);
+int PA_CheckFaultPriorRun();
 
 #endif

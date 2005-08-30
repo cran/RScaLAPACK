@@ -32,16 +32,6 @@
  */
 #include "ParallelAgent.h"
 
-/*#define DEBUG_RSCALAPACK*/
-
-#ifndef DEBUG_RSCALAPACK
-#define D_Rprintf(x)
-#else
-#define D_Rprintf(x) Rprintf x
-#endif
-
-#define max(a,b) ((a) > (b) ? (a) : (b))
-
 static MPI_Comm childComm;
 static int iGlobalNumChildren = 0;
 
@@ -198,6 +188,8 @@ SEXP PA_Exec(SEXP scriptLocn, SEXP sxInputVector) {
 		ipDims[2] = (int) dpB[0];
 		ipDims[3] = (int) dpB[1];
 	}
+
+
 	
 	/* DATA DISTRIBUTION */
 	/* The data is distributed by the PA to all of the child processes. */
@@ -205,6 +197,7 @@ SEXP PA_Exec(SEXP scriptLocn, SEXP sxInputVector) {
 		D_Rprintf (("SUCCESS[1]: DATA SENT TO CHILD PROCESSES.\n"));
 	} else {	/* The send data failed, */ 
 		Rprintf("ERROR [1] : DATA COULD NOT BE SENT TO CHILD PROCESSES.\n");
+		iGlobalNumChildren = 0;
 		return R_NilValue;
 	}
 
@@ -218,6 +211,19 @@ SEXP PA_Exec(SEXP scriptLocn, SEXP sxInputVector) {
 	sRet = PA_RecvResult(ipDims);
 
 	return sRet;
+}
+
+/* The ScaLAPACK processes check if they have enough memory to execute;
+ * they send a Fault signal if any of the spawned processed does not have
+ * enough memory
+ */
+int PA_CheckFaultPriorRun () {
+	MPI_Status status;
+	int checkFlag;
+
+	PA_ErrorHandler(MPI_Recv (&checkFlag, 1, MPI_INT, 0, CHECKFAULT_TAG,childComm, &status));
+	
+	return checkFlag;
 }
 
 /* ****  PA_UnpackInput  ****
@@ -314,6 +320,7 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 			iMB > ipDims[3])
 		iMB = max(ipDims[0], max(ipDims[1], max(ipDims[2], ipDims[3])));
 
+	
 
 	/* Once upon a time, the block dimensions were taken as two inputs.  Now,
 	 * the blocksize is forced to be square.
@@ -378,7 +385,6 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
  *  2D block/cyclic pattern required by the ScaLAPACK library.
  */
 int PA_SendData(int ipDims[], double dpA[], double dpB[]) {
-	int iWorksize, iMatrixNum;
 	int iFunction;
 	MPI_Comm intercomm;
 
@@ -388,6 +394,7 @@ int PA_SendData(int ipDims[], double dpA[], double dpB[]) {
 	PA_ErrorHandler(MPI_Intercomm_merge(childComm, 0, &intercomm));
 	PA_ErrorHandler(MPI_Bcast(ipDims,10,MPI_INT, 0, intercomm)); 
 
+
 	/* If the function was sla.gridInit or sla.gridExit, then there is
 	 * no data to distribute.
 	 */
@@ -395,13 +402,19 @@ int PA_SendData(int ipDims[], double dpA[], double dpB[]) {
 		return 0;
 	} else {	/* Otherwise, distribute data as usual. */
 
-		iWorksize = ipDims[5];
-		iMatrixNum = 1;
-		F77_CALL (padistdata)(dpA,ipDims,&iWorksize, &iMatrixNum);
+		/* Check if ready to run */
+		if ( PA_CheckFaultPriorRun () != 0){
+			printf(" Memory related problems in one/all of Spawned Processes \n");
+			printf(" Report the bug to: parallel_r@mailhub.ornl.gov \n");
+			return -1;	
+		}
+
+		/* Distribute the first matrix*/
+		PAdistData (dpA,ipDims, ipDims[0], ipDims[1]);
 
 		if (ipDims[2] != 0 && ipDims[8] != 2){
-			iMatrixNum = 2;
-			F77_CALL (padistdata)(dpB,ipDims,&iWorksize, &iMatrixNum);
+			/* Distribute the Second matrix*/
+			PAdistData (dpB,ipDims, ipDims[2], ipDims[3]);
 		}
 
 		return 0;
@@ -426,7 +439,7 @@ SEXP PA_RecvResult(int ipDims[])
 	D_Rprintf(("Preparing to receive .... "));
 
 	/* First, get the number of matrices in the return object. */
-	iStatus = MPI_Recv(&iNumMatrices,1,MPI_INT,0,202,childComm,MPINULL);
+	iStatus = MPI_Recv(&iNumMatrices,1,MPI_INT,0,NUMMATRICES_TAG,childComm,MPINULL);
 	if (iStatus != MPI_SUCCESS) {
 		PA_ErrorHandler(iStatus);
 		return R_NilValue;
@@ -434,13 +447,17 @@ SEXP PA_RecvResult(int ipDims[])
 
 	D_Rprintf(("%d matrices\n", iNumMatrices));
 
+	if (iNumMatrices == 0){
+		return R_NilValue;
+	}
+
 	/* Setup the R vector to hold the R matrix objects */
 	PROTECT( sxRet = allocVector(VECSXP, iNumMatrices) );
 
 	/* Main loop */
 	for (i = 0; i < iNumMatrices; i++) {
 		/* Get the dimensions of matrix i */
-		iStatus = MPI_Recv(ipOutDims, 3, MPI_INT, 0, 300+i, childComm, MPINULL);
+		iStatus = MPI_Recv(ipOutDims, 3, MPI_INT, 0, RECVRESULT_TAG+i, childComm, MPINULL);
 		if (iStatus != MPI_SUCCESS) {
 			PA_ErrorHandler(iStatus);
 			UNPROTECT( 1 );
@@ -472,14 +489,15 @@ SEXP PA_RecvResult(int ipDims[])
 		 * a normal MPI call or via the PACollectData function */
 		if (ipOutDims[0] == 1) {
 			iStatus = MPI_Recv(REAL(sxTmp), ipOutDims[1]*ipOutDims[2],
-					MPI_DOUBLE,	0, 400+i, childComm, MPINULL);
+					MPI_DOUBLE,	0, RECVVECORMAT_TAG+i, childComm, MPINULL);
 			if (iStatus != MPI_SUCCESS) {
 				PA_ErrorHandler(iStatus);
 				return R_NilValue;
 			}
 		} else {
-			F77_CALL(pacollectdata)(REAL(sxTmp), ipOutDims+1, ipOutDims+2,
-					ipDims, &iWorksize);
+			/*F77_CALL(pacollectdata)(REAL(sxTmp), ipOutDims+1, ipOutDims+2,
+					ipDims, &iWorksize);*/
+			PAcollectData(REAL(sxTmp), ipDims, ipOutDims[1], ipOutDims[2]);
 		}
 
 		D_Rprintf(("Received.\n"));
@@ -574,12 +592,18 @@ int PA_SetDim(SEXP s, int iNumDim, int *ipMyDims) {
  * global variable childComm as the childCommunicator.
  */
 /* Note:  PA_SendVectorToCR is translated to "pasend_" for Fortran compatibility */
+/*void PA_SendVectorToCR(int *ib, int *ia, double *work, int *mb, int *s2rank, MPI_Request *request) {*/
 void PA_SendVectorToCR(int *ib, int *ia, double *work, int *mb, int *s2rank) {
-	MPI_Datatype GEMAT;
 
-	PA_ErrorHandler(MPI_Type_vector(*ia, *ib, *mb, MPI_DOUBLE, &GEMAT));
+	MPI_Datatype GEMAT;
+	int err;
+
+	PA_ErrorHandler(MPI_Type_vector(*ia, *ib, *ib, MPI_DOUBLE, &GEMAT));
 	PA_ErrorHandler(MPI_Type_commit (&GEMAT));
 
+/*	Performance degraded with non-blocking communications
+	PA_ErrorHandler(MPI_Isend ( work, 1, GEMAT, *s2rank, 5000 , childComm, request));
+*/	
 	PA_ErrorHandler(MPI_Send ( work, 1, GEMAT, *s2rank, 5000 , childComm));
 
 	PA_ErrorHandler(MPI_Type_free (&GEMAT));
@@ -590,13 +614,19 @@ void PA_SendVectorToCR(int *ib, int *ia, double *work, int *mb, int *s2rank) {
  * global variable childComm as the intercommunicator.
  */
 /* Note:  PA_RecvVectorFromCR is translated to "parecv_" for Fortran compatibility */
+/*void PA_RecvVectorFromCR (int *ib, int *ia, double *A, int *mb, int *fromRank, MPI_Request *request) {*/
 void PA_RecvVectorFromCR (int *ib, int *ia, double *A, int *mb, int *fromRank) {
-	MPI_Datatype GEMAT;
 
-	PA_ErrorHandler(MPI_Type_vector(*ia, *ib, *mb, MPI_DOUBLE, &GEMAT));
+	MPI_Datatype GEMAT;
+	MPI_Status status;
+
+	PA_ErrorHandler(MPI_Type_vector(*ia, *ib, *ib, MPI_DOUBLE, &GEMAT));
 	PA_ErrorHandler(MPI_Type_commit (&GEMAT));
 
-	PA_ErrorHandler(MPI_Recv (A, 1, GEMAT, *fromRank ,15000 ,childComm, MPINULL));
+/*	Performance degraded with non-blocking communications
+	PA_ErrorHandler(MPI_Irecv (A, 1, GEMAT, *fromRank ,15000 ,childComm, request));
+*/	
+	PA_ErrorHandler(MPI_Recv (A, 1, GEMAT, *fromRank ,15000 ,childComm, &status));
 
 	PA_ErrorHandler(MPI_Type_free (&GEMAT));
 }

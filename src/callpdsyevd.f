@@ -65,7 +65,7 @@
 *     .. Memory Pointers ...
       INTEGER IPA, IPW, IPZ, IPWORK, IPIWORK, TEMP
 *     .. Output Params
-      INTEGER NOUTMAT,OUTDIM(3)
+      INTEGER FAILFLAG,NOUTMAT,OUTDIM(3)
 
 * =============================================================
 *     Function Declarations
@@ -85,6 +85,7 @@
       NPCOL = PGINFO (8)
 
       NOUTMAT = 2
+      FAILFLAG = 0
 
 *      PRINT *, 'Initialization successful'
 
@@ -116,10 +117,10 @@
       IA = 1
       JA = 1
 
-*      NP = NUMROC ( N, NB, MYROW, 0, NPROW )
-*      NQ = NUMROC ( N, NB, MYCOL, 0, NPCOL )
-*      TRILWMIN = 3 * N + MAX (NB * ( NP +1 ), 3 * NB)
-*      TEMP = MAX ( 1 + 6*N + 2*NP*NQ , TRILWMIN) + 2*N
+      NP = NUMROC ( N, NB, MYROW, 0, NPROW )
+      NQ = NUMROC ( N, NB, MYCOL, 0, NPCOL )
+      TRILWMIN = 3 * N + MAX (NB * ( NP +1 ), 3 * NB)
+      TEMP = MAX ( 1 + 6*N + 2*NP*NQ , TRILWMIN) + 2*N
 
       NUMC_Z = NUMROC ( JZ+N-1, NB, MYCOL, 0, NPCOL)
       LIWORK = 7*N + 8*NPCOL + 2
@@ -160,21 +161,35 @@
 
       IF ( INFO.EQ.0 ) THEN
             LWORK = MEM ( IPWORK )
-*            IF ( LWORK.EQ.TEMP)
-*     $            PRINT *, 'LWORK  EQ TEMP ', LWORK, TEMP
+
+            IF ( LWORK.EQ.TEMP) THEN
+*                 PRINT *, 'LWORK  EQ TEMP ', LWORK, TEMP
+            ELSE
+                 PRINT *, 'LWORK  Not EQ TEMP ', LWORK, TEMP
+            ENDIF
             
             IF (IPWORK+LWORK-1 .GT. MEMSIZ ) THEN
                   PRINT *, 'NOT ENOUGH MEMORY .. ', MEMSIZ 
      $             , IPWORK + LWORK 
-                  GO TO 20
+                  FAILFLAG = 1 
             ENDIF
       ELSE
             IF ( IAM.EQ.0)
      $             PRINT *, 'PDSYEVD DRY RUN FAILED .. 
      $                  = ', INFO
-            GO TO 20
+            FAILFLAG = 1     
       ENDIF
 
+*      PRINT *, 'Check Fail Flag'
+
+      CALL CRCheckFailFlag (FAILFLAG) 
+
+      IF ( IAM.EQ.0)
+     $      CALL CRSendIntToPA( FAILFLAG, 1, 1202 )
+      
+      IF ( FAILFLAG.EQ.1 )
+     $     GO TO 20
+      
 *      PRINT *, 'Dry run successful'
 * =================================================================
 
@@ -225,7 +240,7 @@
 * ==================================================================
 *     Exit the Grid
    20 CONTINUE
-
+      
       CALL BLACS_GRIDEXIT ( ICTXT)
 
 *      PRINT *, 'Exiting BLACS grid  successful'

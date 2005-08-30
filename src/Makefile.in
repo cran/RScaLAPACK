@@ -2,10 +2,10 @@
 # RSCALAPACK/src/Makefile
 #
 
-LIBS=-lscalapack -lblacsF77init -lblacsCinit -lblacs -lf77blas -latlas -llamf77mpi -lmpi -llam -lpthread 
-LDFLAGS=-L/home/srikanth/lib -L/home/srikanth//lib 
-CFLAGS=-I/home/srikanth//include -g -O2 
-PALIBS=-lmpi -llam -lpthread
+LIBS=@LIBS@
+LDFLAGS=@LDFLAGS@
+CFLAGS=@CFLAGS@
+PALIBS=@PALIBS@
 exec_dir=../exec
 
 PA_OBJECTS=ParallelAgent.o PAdistData.o 

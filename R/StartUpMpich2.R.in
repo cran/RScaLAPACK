@@ -27,46 +27,21 @@
 # Scientific Discovery through Advanced Computing (DOE SciDAC) program
 # (http://www.scidac.org ). 
 # ======================================================================
-RpdsyevdDemo <- function () {
 
-	library(RScaLAPACK)
+.First.lib <- function (lib, pkg) {
+	library.dynam("RScaLAPACK", pkg, lib)
+	if (system("mpdtrace") != 0) {
+	  if (interactive()) {
+		print("The MPICH2 MPD daemon does not appear to be running.", quote=FALSE)
+		print("Please use the mpdboot command to start the daemon.", quote=FALSE)
+		print("(From inside R, use the command 'system(\"mpdboot\")')", quote=FALSE)
+	  } else {
+	    system("mpdboot -H", FALSE, TRUE)
+		}
+	}
+}
 
-        print ("****************************************************")
-        print ("           DEMO: EIGEN DECOMPOSITION                ")
-        print ("****************************************************")
-
-
-        x <- c(4.16, -3.12,  0.56, -0.10, -3.12,  5.03, -0.83,  1.18,  0.56, -0.83,  0.76,  0.34, -0.10,  1.18,  0.34,  1.18)
-
-	dim(x) <- c(4,4)
-
-	print (x)
-
-	print (" EIGEN DECOMPOSITION using ScaLAPACK function")
-
-	print (" Process grid specifications .. in order ")
-
-	print (" NPROWS = 2  NPCOLS = 2 ")
-
-	print (" Block size:  MB = 2   NB = 2 ")
-
-	print (" Calling ScaLAPACK function .. sla.eigen(x) ")
-
-	a <- sla.eigen(x)
-
-	print(a)
-
-	print (" Eigen Decomoposition using corrosponding LAPACK function .. eigen(x) ")
-
-	b <- eigen(x)
-
-	print (b)
-
-	print (" Compare the results !! ")
-
-	print (" Experiment with different process grid parameters and different block sizes.")
-
-       print ("****************************************************")
-
+.Last.lib <- function(libpath){
+	library.dynam.unload("RScaLAPACK", libpath)
 }
 

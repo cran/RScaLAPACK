@@ -70,7 +70,7 @@
 *     .. Local Scalars ..
       INTEGER            IAM, ICTXT, INFO, IPA, IPB, 
      $                   IPW, MYCOL,MYROW,N, NB_BLK, NOUT, NPCOL,
-     $                   NPROCS, NPROW, WORKSIZ,
+     $                   NPROCS, NPROW, WORKSIZ,FAILFLAG,
      $                   M_MAT1, N_MAT1, M_MAT2, N_MAT2, NOUTMAT
       INTEGER            IPC, NP1, NQ1, NP2, NQ2, NP3, NQ3, 
      $                   M_MAT3, N_MAT3 
@@ -99,8 +99,10 @@
 *     Get starting information
 *
 *      sTime = MPI_WTIME()
+*
+*==============================================================
+*     Assign process grid values
 
-      CALL BLACS_PINFO( IAM, NPROCS )
       M_MAT1   = PGINFO(1)
       N_MAT1   = PGINFO(2)
       M_MAT2   = PGINFO(3)
@@ -114,22 +116,33 @@
       N_MAT3 = N_MAT2
 
       NOUTMAT  = 1
+      FAILFLAG = 0
 
       NOUT = 6
       N = PGINFO(1)
+
+*      PRINT *, 'Initialization successful'
+*==============================================================
+*     Set up processes and memory
 *
-*     Define process grid
-*
+      CALL BLACS_PINFO( IAM, NPROCS )
+
+*     Define Process Grid
+
       CALL BLACS_GET( -1, 0, ICTXT )
       CALL BLACS_GRIDINIT( ICTXT, 'Row-major', NPROW, NPCOL )
       CALL BLACS_GRIDINFO( ICTXT, NPROW, NPCOL, MYROW, MYCOL )
-*
-*     Go to bottom of process grid loop if this case doesn't use my
-*     process
-*
+
+*      PRINT *, 'BLACS Initialization successful'
+
+*     Do not perform anything is not part of process grid
       IF( MYROW.GE.NPROW .OR. MYCOL.GE.NPCOL )
      $   GO TO 20
-*
+* =============================================================
+*     Initialize the array descriptors
+
+*     Leading dimension of A
+
       NP1   = NUMROC( M_MAT1, MB_BLK, MYROW, 0, NPROW )
       NQ1   = NUMROC( N_MAT1, NB_BLK, MYCOL, 0, NPCOL )
 
@@ -138,10 +151,6 @@
 
       NP3 = NP1
       NQ3 = NQ2
-
-*
-*     Initialize the array descriptor for the matrix A, B and C
-*
 
       CALL DESCINIT(DESCA, M_MAT1, N_MAT1, MB_BLK, NB_BLK, 0, 0,
      $        ICTXT, MAX( 1, NP1 ), INFO )
@@ -152,11 +161,11 @@
       CALL DESCINIT(DESCC, M_MAT3, N_MAT3, MB_BLK, NB_BLK, 0, 0, 
      $        ICTXT, MAX( 1, NP3 ), INFO )
 
+*      PRINT *, 'DESC Initialization successful'
+* ================================================================
 
-*
-*     Assign pointers into MEM for SCALAPACK arrays, A is
-*     allocated starting at position MEM( 1 )
-*
+*     Assign Pointers into MEM for scalapack arrays
+
       IPA = 1
       IPB = IPA + DESCA( LLD_ ) * NQ1
       IPC = IPB + DESCB( LLD_ ) * NQ2
@@ -164,40 +173,47 @@
 
       WORKSIZ = NB_BLK
 
-*
-*     Check for adequate memory for problem size
-*
-      INFO = 0
+*      PRINT *, 'Pointer assigning Initialization successful'
+* ================================================================
+
+*     Get the optimum working size by doing a workspace query
+
+
       IF( IPW+WORKSIZ.GT.MEMSIZ ) THEN
-         INFO = 1
+        PRINT *, 'NOT ENOUGH MEMORY..', MEMSIZ, IPW+WORKSIZ
+        FAILFLAG=1
       END IF
-*
-*     Check all processes for an error
-*
-      CALL IGSUM2D( ICTXT, 'All', ' ', 1, 1, INFO, 1, -1, 0 )
-      IF( INFO.GT.0 ) THEN
-         IF( IAM.EQ.0 )
-     $      WRITE( NOUT, FMT = 9999 ) 'MEMORY'
-         GO TO 10
-      END IF
-*
-*     Read from GLOBALMATRIX  and distribute matrices A and B
-*
+
+*      PRINT *, 'Check Fail Flag'
+
+      CALL CRCheckFailFlag (FAILFLAG)
+
+      IF ( IAM.EQ.0)
+     $      CALL CRSendIntToPA(FAILFLAG, 1, 1202)
+
+      IF ( FAILFLAG.EQ.1 )
+     $     GO TO 20
+
+*      PRINT *, 'Memory verification successful'
+* =================================================================
+
+*     Distribute the Input Matrix
 
       CALL CRDistData( MEM( IPA ), DESCA, MEM( IPW ) )
       CALL CRDistData( MEM( IPB ), DESCB, MEM( IPW ) )
-*
+
+*      PRINT *, 'Distribution  successful'
+* =================================================================
 *     Call PDGEMM function
-*
+
       CALL PDGEMM( 'No transpose', 'No transpose', M_MAT1, N_MAT2, 
      $             N_MAT1, ALPHA, MEM( IPA ), 1, 1, DESCA, MEM( IPB ), 
      $             1, 1, DESCB, BETA, MEM( IPC ), 1, 1, DESCC )
 
 
-*
-*     PERFORM MPI_Send giving the number of output matrices sv outputs
-*     PERFORM MPI_Send sending the type of collect to be made along
-*     with the output matrix dimensions
+*      PRINT *, 'Multiplication successful'
+* ================================================================
+*     Collect Result
 *
       IF (IAM.EQ.0) THEN
           CALL CRSendIntToPA(NOUTMAT, 1, 202)
@@ -210,20 +226,18 @@
 
       CALL CRCollectData(M_MAT3, N_MAT3, MEM( IPC ), 1, 1, DESCC,
      $                MEM( IPW ) )
+
 *
-   10 CONTINUE
+*      PRINT *, 'SOLVE result collection  successful'
+* ==================================================================
+*     Exit the Grid
+
+   20 CONTINUE
 *
       CALL BLACS_GRIDEXIT( ICTXT )
 *
-   20 CONTINUE
-*
-*
-
 *      eTime = MPI_WTIME()
-
 *      WRITE(*,9997) MYROW, MYCOL, (eTime - sTime)
-
- 9999 FORMAT( 'Bad ', A6, ' parameters: going on to next test case.' )
 * 9997 FORMAT( I2, '/', I2, ' : Time taken by PARALLEL ROUTINE 
 *     $ (pdgemm) = ', F12.8, ' Sec')
 

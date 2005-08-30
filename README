@@ -1,37 +1,239 @@
-INSTALLATION Instructions:
---------------------------
+                             -------------------------------
+                              I - INSTALLATION Instructions
+                             -------------------------------
 
-1.  Make sure that you have the following libraries installed.
+RScaLAPACK package is built uses MPI, BLAS, BLACS and ScaLAPACK libraries
+For successful installation read the following instructions carefully.
 
-	A. LAM libraries
-		a. liblamf77mpi
-		b. libmpi
-		c. liblam
+=================================================================================
 
-	B. BLAS libraries
-		Using Atlas:
-		a. libf77blas
-		b. libatlas
-
-		Using other
-		a. libblas
-
-	C. BLACS libraries
-        
-	   Note: Please, note that the naming of the libraries must be same
-    	         as listed below.
-
-		a. libblacsF77init
-		b. libblacs
-		c. libblacsCinit
+1. Use either MPICH2 or LAM-MPI distributions with RScaLAPACK. 
 	
-
-	D. SCALAPACK libraries
+	MPICH2:
+	------
+	Download: 
+		http://www-unix.mcs.anl.gov/mpi/mpich2	
+		
+	Installation:
+		A detailed MPICH2 Installation Instructions can be found at
+		www-unix.mcs.anl.gov/mpi/ mpich2/downloads/mpich2-doc-install.pdf
 	
-		a. libscalapack
+	RScaLAPACK uses libmpich.a and libfmpich.a libraries. 
 
-Note: Installation instructions can be found in "html" directory.
+	 ----
+	| OR |
+	 ----
 
-2.  Run the Install command
+	LAM-MPI:
+	-------
+	Download:
+		http://www.lam-mpi.org/7.1/download.php		
 
-	R CMD INSTALL scalapack_0.3.7.tar.gz
+	Installation:
+		A detailed LAM-MPI installation instructions can be found at
+		www.lam-mpi.org/download/files/7.1.1-install.pdf
+
+	RScaLAPACK uses liblam.a, libmpi.a and liblamf77mpi.a libraries. 
+
+====================================================================================
+
+2. BLAS libraries [Recommended: download and install ATLAS]
+
+	ATLAS:
+	-----
+	Download: [ atlas3.6.0.tgz ]
+		http://www.netlib.org/atlas
+
+	Installation:
+		Instructions for installation can be found in the INSTALL.txt
+		in the atlas3.6.0.tgz library.	
+
+====================================================================================
+
+3. BLACS libraries
+	BLACS is the Basic Linear Algebra Communication System, built on top of MPI.
+
+	Download: [ mpiblacs.tgz ; mpiblacs-patch03.tgz ] - required
+		  [ blacstester.tgz ] - optional (recommended)
+		http://www.netlib.org/blacs
+
+	Installation: Follow the steps.
+		(1) Unzip and untar all the files 
+			$ tar -zxvf mpiblacs.tgz
+			$ tar -zxvf mpiblacs-patch03.tgz
+			$ tar -zxvf blacstester.tgz
+		
+		- A BLACS directory containing all relevant files are created
+
+		(2) Change the "Bmake.inc" file according to your system specifications.
+
+		    The "Bmake.inc" file modified to use LAM-MPI and MPICH2 can be found 
+		at the Parallel-R website
+
+		http://www.aspect-sdm.org/Parallel-R/RScaLAPACK/documentation.html
+
+		(3)
+			$ make mpi
+			
+			Should build the required blacs libraries.
+
+		(4) Make sure that BLACS works correctly before proceeding 
+		    further [ optional ] - recommended 
+			
+			$ make test
+
+		This will create 2 executables in BLACS/TESTING/EXE file ...
+		
+			$ mpirun -np 4 ./xCbtest_MPI_Linux-0		
+			$ mpirun -np 4 ./xFbtest_MPI_Linux-0
+
+		The execution of these suggests proper installation of blacs libraries
+
+		(5) RScaLAPACK uses following libraries
+
+			libblacs.a 
+			libblacsCinit.a
+			libblacsF77init.a
+
+		NOTE:   IF THE BLACS LIBRARIES INSTALLED ARE NAMED DIFFERENT FROM ABOVE, 
+	  		PLEASE CREATE THE SYMBOLIC LINKS WITH THE ABOVE MENTIONED NAMES
+			TO THE BLACS LIBRARIES
+
+			eg: 
+			$ ln -s libblacs.a blacs_MPI_Linux_0.a	
+
+=============================================================================================
+		
+4. ScaLAPACK library
+			
+	Download: [ scalapack.tgz ] 
+		http://www.netlib.org/scalapack/scalapack_home.html
+
+	Installation: Follow the steps
+		(1) Make modifications to the "SLmake.inc" file
+		
+		(2) A sample "SLmake.inc" file for ScaLAPACK installation can be found at
+		 	http://www.aspect-sdm.org/Parallel-R/RScaLAPACK/documentation.html
+
+		(3)  
+			$ make
+			
+			Builds the libscalapack.a library.
+
+		(4)	[ optional ] -- Recommended.
+
+			$ make exe
+
+			Creates executable which can be tested for proper working of ScaLAPACK 
+			library. The executables can be found under "TESTING" directory of 
+			SCALAPACK.  To test
+
+			$ mpirun -np 4 ./xcnep
+			
+			The proper execution of the executable suggests the correct working
+			of the ScaLAPACK library.
+
+==============================================================================================
+
+5. Building RScaLAPACK library
+
+	Download: [ RScaLAPACK_0.4.1.tgz ]
+		http://www.aspect-sdm.org/Parallel-R/RScaLAPACK/download.html
+		
+		or on CRAN: 
+
+		http://cran.r-project.org/mirrors.html	
+
+
+	Installation:
+		The easiest way to get a successful installation of RScaLAPACK.
+	
+		(1) Create a "lib" directory in your home area.
+			mkdir lib
+
+		    -- Creates a library in /home/unknown/lib
+
+		(2) Create symoblic links or copy all the ScaLAPACK related libraries to this 
+		    directory. i.e.
+
+			libatlas.a
+			libcblas.a
+			libf77blas.a
+			libblacs.a
+			libblacsCinit.a
+			libblacsF77init.a
+			libscalapack.a
+
+		(3) Install RScaLAPACK
+
+R CMD INSTALL --configure-args="--with-mpi=/path-to/mpi/home --with-scalapack=/home/unknown/lib" RScaLAPACK_0.4.1.tar.gz
+
+	If the libraries are installed in default locations like "/usr/lib" or "/usr/local/lib", then
+	just use
+
+R CMD INSTALL RScaLAPACK_0.4.1.tar.gz
+
+
+Alternatively:
+-------------
+If your libraries are not under the same directory, you can still configure without
+bringing all libraries to the same directory (either by copying or creating symbolic links)
+by using the configure options as shown below
+
+R CMD INSTALL --configure-args="--with-mpi=/path-to/mpi/home 
+				--with-blas=/path-to/blas/lib
+				--with-blacs=/path-to/blacs/lib
+				--with-scalapack=/path-to/scalapack/lib" RScaLAPACK_0.5.0.tar.gz
+
+=======================================================================================================
+
+6. More questions: 
+	Write to parallel_r@mailhub.ornl.gov  
+========================================================================================================
+
+                             -------------------------
+                              II - Usage Instructions
+                             -------------------------
+
+1. Load the RScaLAPACK library in the R-environment
+	
+	> library (RScaLAPACK)
+
+   Upon loading the library as shown above the RScaLAPACK fucntion calls are made
+   available to the user.
+
+
+2. Create a matrix
+	> x <- matrix ( rnorm( 256 ), 16, 16)
+	
+	> y <- matrix ( rnorm( 16 ), 16, 1)
+
+	> sla.solve (x,y,2,2,2) 
+
+	To obtain the result.
+
+3. To find help for a function in R, use
+
+	> ?sla.solve
+
+4. To get to know the details of a package
+
+	> help (package=RScaLAPACK)
+
+
+DEMO:
+----
+To invoke the demo scripts, provided along with the package
+
+	> demo (RScaLAPACK)
+
+This will provide you with a list of demo routines provided with this
+package. To view the demo, you can call any of the listed function.
+For example:
+
+	> slaSolveDemo() 
+
+This command will run the R script demonstrating the usage of "sla.solve" function.
+	  
+===========================================================================================================
+

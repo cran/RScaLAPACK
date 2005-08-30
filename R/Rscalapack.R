@@ -77,13 +77,15 @@ sla.solve <- function (A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64,RFLAG=1, SPAWN=1 )
 	NPROWS=t[1]
 	NPCOLS=t[2]
 
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dimA, MB)
+
 	inputVector <- list(A,B,as.integer(NPROWS),as.integer(NPCOLS),as.integer(MB), as.integer(1),as.integer(RFLAG),as.integer(SPAWN))
 
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
-    if (length(x) == 1) {
+	
         attributes(x) = list(names="x")
         return (x$x)
-    } else  return (x$x)
 }
 
 sla.svd <- function (A=0, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN=1){
@@ -121,6 +123,9 @@ sla.svd <- function (A=0, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, 
 	NPROWS=t[1]
 	NPCOLS=t[2]
 
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dimA, MB)
+
 	inputVector <- list(A,B,as.integer(NPROWS),as.integer(NPCOLS),as.integer(MB), as.integer(2), as.integer(RFLAG),as.integer(SPAWN))
 
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
@@ -149,6 +154,8 @@ sla.qr <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 ){
 	NPROWS=t[1]
 	NPCOLS=t[2]
 
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dimA, MB)
 	inputVector <- list(A,as.real(NULL),as.integer(NPROWS),as.integer(NPCOLS),as.integer(MB), as.integer(3), as.integer(RFLAG),as.integer(SPAWN))
 
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
@@ -187,6 +194,9 @@ sla.chol <- function (A=0, NPROWS=0, NPCOLS=0, MB=64, RFLAG = 1, SPAWN = 1 ){
 	NPROWS=t[1]
 	NPCOLS=t[2]
 
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dimA, MB)
+
 	inputVector <- list(A,as.real(NULL),as.integer(NPROWS),as.integer(NPCOLS),as.integer(MB), as.integer(4), as.integer(RFLAG),as.integer(SPAWN))
 
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
@@ -216,6 +226,9 @@ sla.chol2inv <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 )
 	NPROWS=t[1]
 	NPCOLS=t[2]
 
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dimA, MB)
+
 	inputVector <- list(A,as.real(NULL),as.integer(NPROWS),as.integer(NPCOLS),as.integer(MB), as.integer(5), as.integer(RFLAG),as.integer(SPAWN))
 
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
@@ -243,6 +256,9 @@ sla.eigen <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 ){
 	NPROWS=t[1]
 	NPCOLS=t[2]
 
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dimA, MB)
+
 	inputVector <- list(A,as.real(NULL),as.integer(NPROWS),as.integer(NPCOLS),as.integer(MB), as.integer(6),as.integer(RFLAG),as.integer(SPAWN))
 
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
@@ -269,17 +285,17 @@ sla.ProcessRowsColumns <- function(NPROWS, NPCOLS) {
                                                                                 
 # If the user didn't specify a grid, but a grid was found in the root
 # environment space, use that (but give a warning.)
-#    if (NPROWS == 0 && exists(".RscalaGrid") && is.numeric(.RscalaGrid)) {
-#        NPROWS = .RscalaGrid[1];
-#        NPCOLS = .RscalaGrid[2];
-#        if (is.na(NPCOLS)) NPCOLS = 0
-#        if (is.na(NPROWS) || NPROWS < 1 || NPCOLS < 0) {
-#            print("Bad grid found in .RscalaGrid, ignoring")
-#            NPROWS = NPCOLS = 0
-#        } else {
-#            print("Using default grid from .RscalaGrid")
-#        }
-#    }
+    if (NPROWS == 0 && exists(".RscalaGrid") && is.numeric(.RscalaGrid)) {
+        NPROWS = .RscalaGrid[1];
+        NPCOLS = .RscalaGrid[2];
+        if (is.na(NPCOLS)) NPCOLS = 0
+        if (is.na(NPROWS) || NPROWS < 1 || NPCOLS < 0) {
+            print("Bad grid found in .RscalaGrid, ignoring")
+            NPROWS = NPCOLS = 0
+        } else {
+            print("Using default grid from .RscalaGrid")
+        }
+    }
                                                                                 
 # If the user didn't specify a number of rows, use a single process
 # If the user didn't specify a number of columns, assume the number
@@ -317,6 +333,18 @@ sla.gridExit <- function() {
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
         print (" Process Grid Released ... " )  
 }
+
+sla.checkBlockSize <-function(tdimA, tMB) {
+	temp = (tdimA[1] * tdimA[2]) / tMB
+	if (temp > 32768 ){
+		temp1 = (tdimA[1] * tdimA[2]) / 32768
+		return (temp1)
+
+	} else {
+		return (tMB)
+	}
+}
+	
 
 sla.multiply <- function( A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN=1 ) {
 
@@ -359,6 +387,9 @@ sla.multiply <- function( A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN
 	NPROWS=t[1]
 	NPCOLS=t[2]
 
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dimA, MB)
+
 	inputVector <- list(A,B,as.integer(NPROWS), as.integer(NPCOLS), as.integer(MB), as.integer(7),as.integer(RFLAG),as.integer(SPAWN))
 
 	#call 
@@ -371,4 +402,7 @@ sla.multiply <- function( A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN
 
 }
 
-
+sla.quit <- function (){
+	PA.exit()
+	q()
+}

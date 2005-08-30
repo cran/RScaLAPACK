@@ -5,6 +5,7 @@ sla.gridInit            Initialize the Process Grid for ScaLAPACK
                         Computations
 sla.qr                  The QR Decomposition of a Matrix (Using
                         ScaLAPACK)
+sla.quit		Call MPI_Finalize and quit R.
 sla.svd                 Singular Value Decomposition of a Matrix
 sla.solve               Solve a System of Equations using Scalapack
                         functions
