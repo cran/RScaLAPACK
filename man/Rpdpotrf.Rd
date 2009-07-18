@@ -1,7 +1,7 @@
 \name{sla.chol}
 \title{Choleski Factorization of a real, symmetric, positive-definite, square-matrix using ScaLAPACK}
 \usage{
-sla.chol(A, NPROWS, NPCOLS, MB, RFLAG, SPAWN)
+sla.chol(A, NPROWS=0, NPCOLS=0, MB=16, RFLAG = 1, SPAWN = 1 )
 }
 \alias{sla.chol}
 \arguments{
@@ -48,11 +48,10 @@ computation.}
 }
 
 \examples{
-library(RScaLAPACK)
 c(4.16,0,0,0,-3.12,5.03,0,0,0.56,-0.83,0.76,0,-0.10,1.18,0.34,1.18)->x
 dim(x)=c(4,4)
-sla.chol(x)
+sla.chol(x, NPROWS=2, NPCOLS=2, MB=2)
 }
-
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}

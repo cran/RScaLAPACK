@@ -6,21 +6,53 @@ LIBS=@LIBS@
 LDFLAGS=@LDFLAGS@
 CFLAGS=@CFLAGS@
 PALIBS=@PALIBS@
+INTRINSICLIBS=-lgfortran -ldl
 exec_dir=../exec
 
 PA_OBJECTS=ParallelAgent.o PAdistData.o 
+
 CR_OBJECTS=CRscalapack.o callpdgesv.o callpdgeqrf.o callpdgesvd.o callpdgemm.o\
 		callpdpotrf.o callpdpotri.o callpdsyevd.o CRcollectData.o \
 		CRdistData.o
 
-all: CRDriver RScaLAPACK.so
+
+all: RScaLAPACK.so CRDriver
 
 RScaLAPACK.so: $(PA_OBJECTS)
-	$(SHLIB_LINK) $(PA_OBJECTS) $(CFLAGS) -lg2c $(LDFLAGS) $(PALIBS) -o $@
+	$(SHLIB_LINK) $(PA_OBJECTS) $(CFLAGS) $(LDFLAGS) $(PALIBS) -o $@
+
 
 CRDriver: CRDriver.o $(CR_OBJECTS)
-	$(CC) CRDriver.o $(CR_OBJECTS) $(LDFLAGS) $(LIBS) $(CFLAGS) -lg2c -o $@
+	gcc -std=gnu99 CRDriver.o $(CR_OBJECTS) $(LDFLAGS) $(LIBS) $(LIBS) $(CFLAGS) $(INTRINSICLIBS) -o $@
 	cp CRDriver $(exec_dir)
+
+callpdgesv.o:callpdgesv.f
+	gfortran  -g -O2 -c callpdgesv.f 
+
+callpdgeqrf.o:callpdgeqrf.f
+	gfortran  -g -O2 -c callpdgeqrf.f 
+
+callpdgesvd.o:callpdgesvd.f
+	gfortran  -g -O2 -c callpdgesvd.f 
+
+callpdgemm.o:callpdgemm.f
+	gfortran  -g -O2 -c callpdgemm.f 
+
+callpdpotrf.o:callpdpotrf.f
+	gfortran  -g -O2 -c callpdpotrf.f 
+
+callpdpotri.o:callpdpotri.f
+	gfortran  -g -O2 -c callpdpotri.f 
+
+callpdsyevd.o:callpdsyevd.f
+	gfortran  -g -O2 -c callpdsyevd.f 
+
+CRcollectData.o:CRcollectData.f
+	gfortran  -g -O2 -c CRcollectData.f 
+ 
+CRdistData.o:CRdistData.f
+	gfortran  -g -O2 -c CRdistData.f 
+
 
 clean:
 	rm -rf CRDriver $(PA_OBJECTS) $(CR_OBJECTS)	

@@ -6,8 +6,8 @@
   These functions \sQuote{rotate} loading matrices in factor analysis using ScaLAPACK.
 }
 \usage{
-sla.varimax(x, normalize = TRUE, eps = 1e-5, NPROWS=0, NPCOLS=0, MB=64)
-sla.promax(x, m = 4, NPROWS=0, NPCOLS=0, MB=64)
+sla.varimax(x, normalize = TRUE, eps = 1e-5, NPROWS=0, NPCOLS=0, MB=16)
+sla.promax(x, m = 4, NPROWS=0, NPCOLS=0, MB=16)
 }
 \arguments{
 	\item{x}{A loadings matrix, with \eqn{p} rows and \eqn{k < p} columns}
@@ -56,11 +56,19 @@ sla.promax(x, m = 4, NPROWS=0, NPCOLS=0, MB=64)
 	\code{\link{factanal}}, \code{\link{Harman74.cor}}.}
 
 \examples{
-data(swiss)
 ## varimax with normalize = T is the default
-fa <- sla.factanal( ~., 2, data = swiss)
-sla.varimax(fa$loadings, normalize = FALSE)
-sla.promax(fa$loadings)
+
+v1 <- c(1,1,1,1,1,1,1,1,1,1,3,3,3,3,3,4,5,6)
+v2 <- c(1,2,1,1,1,1,2,1,2,1,3,4,3,3,3,4,6,5)
+v3 <- c(3,3,3,3,3,1,1,1,1,1,1,1,1,1,1,5,4,6)
+v4 <- c(3,3,4,3,3,1,1,2,1,1,1,1,2,1,1,5,6,4)
+v5 <- c(1,1,1,1,1,3,3,3,3,3,1,1,1,1,1,6,4,5)
+v6 <- c(1,1,1,2,1,3,3,3,4,3,1,1,1,2,1,6,5,4)
+m1 <- cbind(v1,v2,v3,v4,v5,v6)
+fa <- sla.factanal(m1, factors=3, rotation="sla.promax", NPROWS=2, NPCOLS=2, MB=2 )
+sla.varimax(fa$loadings, normalize = FALSE, NPROWS=2, NPCOLS=2, MB=2)
+sla.promax(fa$loadings, NPROWS=2, NPCOLS=2, MB=2)
 }
 \concept{parallel}
 \keyword{multivariate}
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}

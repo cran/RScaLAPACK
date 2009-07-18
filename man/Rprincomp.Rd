@@ -2,8 +2,8 @@
 \title{Principal Components Analysis (Using ScaLAPACK)}
 \usage{
 sla.princomp(x, \dots)
-\method{sla.princomp}{formula}(formula, data = NULL, subset, na.action, NPROWS=0, NPCOLS=0, MB=64, \dots)
-\method{sla.princomp}{default}(x, cor = FALSE, scores = TRUE, covmat = NULL, subset = rep(TRUE, nrow(as.matrix(x))), NPROWS=0, NPCOLS=0, MB=64, \dots)
+\method{sla.princomp}{formula}(formula, data = NULL, subset, na.action, NPROWS=0, NPCOLS=0, MB=16, \dots)
+\method{sla.princomp}{default}(x, cor = FALSE, scores = TRUE, covmat = NULL, subset = rep(TRUE, nrow(as.matrix(x))), NPROWS=0, NPCOLS=0, MB=16, \dots)
 }
 \alias{sla.princomp}
 \alias{sla.princomp.default}
@@ -42,7 +42,6 @@ sla.princomp(x, \dots)
 
 \description{
 	The function \code{sla.prcomp} performs a principal components analysis on the give data matrix (using \code{sla.eigen}) and returns the results as a object of class \code{princomp}.}
-}
 
 \details{
 	If the number of processor rows and columns are both zero, one processor
@@ -84,10 +83,9 @@ sla.princomp(x, \dots)
 }
 
 \examples{
-library(RScaLAPACK)
 data(USArrests)
-sla.princomp(USArrests, cor=TRUE)
+sla.princomp(USArrests, cor=TRUE, NPROWS=2, NPCOLS=2, MB=2)
 }
-
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{multivariate}

@@ -29,7 +29,7 @@
 
 	 \code{\link{sla.svd}}
 	 }
-\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \keyword{internal}
 \concept{parallel}
 \keyword{algebra}

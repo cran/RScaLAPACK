@@ -4,6 +4,7 @@
  *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
  *                            Srikanth Yoginath.
  *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
+ *     Contact: Guruprasad Kora; (865) 576-6210; koragh@ornl.gov
  *                 Computer Science and Mathematics Division
  *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
  *                   (C) 2004 All Rights Reserved
@@ -38,7 +39,13 @@
 #include <R_ext/PrtUtil.h>
 #include <R_ext/RS.h>
 
+#include <dlfcn.h>
+
 #define DONT_SPAWN_R
+
+#if 0
+#define DEBUG_RSCALAPACK
+#endif
 
 #define PC_SEND_DATA_DIM 501
 
@@ -52,9 +59,9 @@
 #define max(a,b) ((a) > (b) ? (a) : (b))
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
-void F77_NAME(blacs_pinfo_)(int *pid, int *nprocs);
-void F77_NAME(blacs_get_)(int *,int *, int *);
-void F77_NAME(blacs_exit_)(int *ipExitFlag);
+void F77_NAME(blacs_pinfo)(int *pid, int *nprocs);
+void F77_NAME(blacs_get)(int *,int *, int *);
+void F77_NAME(blacs_exit)(int *ipExitFlag);
 int F77_NAME(numroc)(int *, int *, int *, int *, int *);
 int F77_NAME(indxg2p)(int *, int *, int *, int *, int *);
 

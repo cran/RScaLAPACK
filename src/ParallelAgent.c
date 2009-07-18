@@ -4,6 +4,7 @@
  *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
  *                            Srikanth Yoginath.
  *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
+ *     Contact: Guruprasad Kora; (865) 576-6210; koragh@ornl.gov
  *                 Computer Science and Mathematics Division
  *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
  *                   (C) 2004 All Rights Reserved
@@ -33,7 +34,10 @@
 #include "ParallelAgent.h"
 
 static MPI_Comm childComm;
+static MPI_Comm intercomm;
 static int iGlobalNumChildren = 0;
+static int iNprows = 0;
+static int iNpcols = 0;
 
 /* ****  PA_Init ****
  * Check to see if MPI is initialized, and if it is not, then initialize it.
@@ -41,6 +45,10 @@ static int iGlobalNumChildren = 0;
  */
 int PA_Init() {
 	int flag;
+
+#if OMPI
+	dlopen("libmpi.so.0", RTLD_GLOBAL | RTLD_LAZY);
+#endif
 
 	if( MPI_Initialized(&flag) != MPI_SUCCESS){
 		Rprintf("ERROR[1]: Failed in call MPI_Initialized \n");
@@ -51,6 +59,7 @@ int PA_Init() {
 		D_Rprintf((" MPI has already been Initialized \n"));
 		return 0;
 	} else {
+		D_Rprintf(("PA: ***************** Initializing MPI\n"));
 		MPI_Init(NULL, NULL);
 		MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN);
 		return 0;
@@ -116,7 +125,7 @@ SEXP PA_Exec(SEXP scriptLocn, SEXP sxInputVector) {
 	 * executable directory (followed by the script name).  Extract the path,
 	 * and use it for the executable's path.
 	 */
-	cpProgram = CHAR(STRING_ELT((scriptLocn), 0));
+	cpProgram = (char *) (CHAR(STRING_ELT((scriptLocn), 0)));
 	iLength = strrchr(cpProgram, '/') - cpProgram;
 	if (iLength < 0) {
 		Rprintf("Path to script is not complete.  Unable to continue.\n");
@@ -143,6 +152,17 @@ SEXP PA_Exec(SEXP scriptLocn, SEXP sxInputVector) {
 		return R_NilValue;
 	}
 
+#if 0
+// Guru
+	int ig;
+	for ( ig = 0; ig < 10; ig++ )
+	{
+		fprintf(stdout, "ipDims[%d] = %d\n", ig, ipDims[ig] );fflush(stdout);
+	}
+
+
+#endif
+
 	/*  Initialize MPI (if it is already initialized, it won't be
 	 *  initialized again).	*/
 	if (PA_Init() != 0){
@@ -161,21 +181,27 @@ SEXP PA_Exec(SEXP scriptLocn, SEXP sxInputVector) {
 		return R_NilValue;
 	}
 
+	int *ipErrcodes = (int *)Calloc(iNumProcs, int);
+
+
+
 	/* Begin:  Spawn the child processes */
 	if ( iSpawnFlag != 0 ) {
 		/* Begin:  Spawn the child processes */
-		D_Rprintf(("Preparing to spawn %d child processes.\n", iNumProcs));
+		D_Rprintf(("PA: Preparing to spawn %d child processes.\n", iNumProcs)); fflush(stdout);
 		iStatus = MPI_Comm_spawn(cpProgram, child_args, iNumProcs, MPI_INFO_NULL,
-				0, MPI_COMM_WORLD, &childComm, MPI_ERRCODES_IGNORE);
+				0, MPI_COMM_WORLD, &childComm, ipErrcodes);
 		free(cpProgram);
 		if (iStatus != MPI_SUCCESS) {
 			Rprintf(" ERROR:  Failed to spawn (%d) child processes.\n", iNumProcs);
 			return R_NilValue;
 		}
 
-		D_Rprintf(("SPAWNING SUCCESSFUL\n"));
+		D_Rprintf(("SPAWNING SUCCESSFUL\n")); fflush(stdout);
 		/* End:  Spawn the child processes */
 		iGlobalNumChildren = iNumProcs;
+		iNprows = ipDims[6];
+		iNpcols = ipDims[7];
 	}
 
 
@@ -189,29 +215,61 @@ SEXP PA_Exec(SEXP scriptLocn, SEXP sxInputVector) {
 		ipDims[3] = (int) dpB[1];
 	}
 
-
 	
 	/* DATA DISTRIBUTION */
 	/* The data is distributed by the PA to all of the child processes. */
 	if ((returnValue = PA_SendData(ipDims, dpA, dpB)) == 0)	{
-		D_Rprintf (("SUCCESS[1]: DATA SENT TO CHILD PROCESSES.\n"));
+		D_Rprintf(("PA: DATA SENT TO CHILD PROCESSES.\n")); fflush(stdout);
 	} else {	/* The send data failed, */ 
 		Rprintf("ERROR [1] : DATA COULD NOT BE SENT TO CHILD PROCESSES.\n");
 		iGlobalNumChildren = 0;
+		iNprows = 0;
+		iNpcols = 0;
 		return R_NilValue;
 	}
+	D_Rprintf(("PA: back to exec.\n")); fflush(stdout);
 
 	/* If the release flag == 1, then the grid will be (or was) released. */
-	if (ipDims[9] == 1) iGlobalNumChildren = 0;
+	if (ipDims[9] == 1) 
+	{
+		iGlobalNumChildren = 0;
+		iNprows = 0;
+		iNpcols = 0;
+	}
 
 	/* If the function is sla.gridInit or sla.gridExit, just return. */
-	if (iFunction == 0) return R_NilValue;
+	if (iFunction == 0) 
+	{
+		// MPI_Comm_free(&intercomm);
+		
+		return R_NilValue;
+	}
 
 	/* GET BACK THE RESULT */
 	sRet = PA_RecvResult(ipDims);
 
 	return sRet;
 }
+
+/* ****  PA_GridInfo  ****
+ * This function returns the current grid info (Number of procs)
+ */
+
+SEXP PA_GridInfo() {
+
+	SEXP sxpGridInfo;
+	PROTECT(sxpGridInfo = NEW_NUMERIC(1));
+	NUMERIC_POINTER(sxpGridInfo)[0] = iGlobalNumChildren;
+	UNPROTECT(1);
+
+	fprintf(stdout, "RScaLAPACK: Slaves= %d ( Rows = %d & Cols = %d )\n",
+		iGlobalNumChildren, iNprows, iNpcols );
+	fflush(stdout);
+
+	return( R_NilValue );
+
+}
+
 
 /* The ScaLAPACK processes check if they have enough memory to execute;
  * they send a Fault signal if any of the spawned processed does not have
@@ -236,6 +294,17 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	SEXP s;
 	int iMB;
 	int ipReleaseFlag;
+
+
+	/* First parameter is the first matrix. --populates ipDims[0] and ipDims[1] */
+	/* Second parameter is the second matrix. --populates ipDims[2] and ipDims[3] */
+	/* Third Parameter is number of Process Rows  -- populates ipDims[6] = NPROWS*/
+	/* Fourth Parameter is number of Process Cols -- populates ipDims[7] = NPCOLS */
+	/* Fifth Parameter is Block Size -- populates ipDims[4] =ipDims [5]= MB */
+	/* Sixth Parameter is function identifier  -- populates ipDims[8] = functionID */
+	/* Seventh parameter --- Instruction to Release Grid or not -- populates ipDims[9]=ReleaseFlag */
+	/* Eighth parameter --- Instruction to Spawn Grid or not*/
+
 
 	/* First parameter is the first matrix. --populates ipDims[0] and ipDims[1] */
 	s = VECTOR_PTR(sxInputVector)[0];
@@ -300,6 +369,7 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
 	ipDims[7] = INTEGER(s)[0];
 
 	*ipNumProcs = ipDims[6] * ipDims[7];  /* iNumProcs = iNPRows * iNPCols  */
+	
 
 	/* Fifth Parameter is Block Size -- populates ipDims[4] =ipDims [5]= MB */
 
@@ -386,19 +456,21 @@ int PA_UnpackInput(SEXP sxInputVector, int *ipDims, double **dppA,
  */
 int PA_SendData(int ipDims[], double dpA[], double dpB[]) {
 	int iFunction;
-	MPI_Comm intercomm;
 
+	MPI_Comm intercomm;
 	iFunction = ipDims[8];
 
 	/* Broadcast the Data Dimension to the child Processes */
 	PA_ErrorHandler(MPI_Intercomm_merge(childComm, 0, &intercomm));
-	PA_ErrorHandler(MPI_Bcast(ipDims,10,MPI_INT, 0, intercomm)); 
 
+
+	PA_ErrorHandler(MPI_Bcast(ipDims,10,MPI_INT, 0, intercomm)); 
 
 	/* If the function was sla.gridInit or sla.gridExit, then there is
 	 * no data to distribute.
 	 */
 	if (iFunction == 0) {
+		D_Rprintf(("PA: iFunction = 0, Just before returning\n"));
 		return 0;
 	} else {	/* Otherwise, distribute data as usual. */
 
@@ -500,7 +572,6 @@ SEXP PA_RecvResult(int ipDims[])
 			PAcollectData(REAL(sxTmp), ipDims, ipOutDims[1], ipOutDims[2]);
 		}
 
-		D_Rprintf(("Received.\n"));
 		/* Set the dimensions of the matrix */
 		PA_SetDim(sxTmp, 2, ipOutDims+1);
 		/* Save the matrix into the vector */

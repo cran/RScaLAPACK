@@ -1,15 +1,15 @@
 \name{sla.svd}
 \title{Singular Value Decomposition of a Matrix}
 \usage{
-sla.svd(A, nu, nv, NPROWS, NPCOLS, MB, RFLAG, SPAWN)
+sla.svd(A, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=16, RFLAG=1, SPAWN=1)
 }
 \alias{sla.svd}
 \arguments{
 	\item{A}{A matrix whose SVD decomposition is to be computed }
 	
-	\item{nu}{The number of left singular vectors to be computed.  Must be either \code{0} or \code{min(nrow(x), ncol(x)}.}
+	\item{nu}{The number of left singular vectors to be computed.  Must be either \code{0} or \code{min(nrow(x), ncol(x))}.}
 
-	\item{nv}{The number of right singular vectors to be computed.  Must be either \code{0} or \code{min(nrow(x), ncol(x)}.}
+	\item{nv}{The number of right singular vectors to be computed.  Must be either \code{0} or \code{min(nrow(x), ncol(x))}.}
 	
 	\item{NPROWS}{Number of Process Rows in the Process Grid. }
 
@@ -52,10 +52,10 @@ computation.}
 
 \examples{
 library(RScaLAPACK)
-rnorm(100)->x
-dim(x)=c(5,20)
-sla.svd(x)
+rnorm(64*64)->x
+dim(x)=c(64,64)
+sla.svd(x, NPROWS=2, NPCOLS=2, MB=16)
 }
-
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}

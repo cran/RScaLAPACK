@@ -4,6 +4,7 @@
 #        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
 #                            Srikanth Yoginath.
 #     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
+#     Contact: Guruprasad Kora; (865) 576-6210; koragh@ornl.gov
 #                 Computer Science and Mathematics Division
 #             Oak Ridge National Laboratory, Oak Ridge TN 37831 
 #                   (C) 2004 All Rights Reserved
@@ -38,12 +39,50 @@ sla.pdgesv<- function () {
 	}	
 }
 
+sla.solve <- function (A, B=NULL, NPROWS=0, NPCOLS=0, MB=16,RFLAG=1, SPAWN=1 ){
 
-sla.solve <- function (A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64,RFLAG=1, SPAWN=1 ){
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	if ( RFLAG < 0 )
+	{
+		stop("RFLAG cannot be a negative value.");
+	}
+
+	if ( SPAWN < 0 )
+	{
+		stop("SPAWN cannot be a negative value.");
+	}
+
+
+# Check for unsupported datatype
+
+	if (is.complex(A) || is.complex(B) ) {
+		stop("Complex datatype is not supported in this version.");
+	}
 
 # Save the dimensions of the matrices
 	dimA = dim(A)
 	dimB = dim(B)
+
+	if ( dimA[1] < NPROWS || dimA[1] < NPCOLS || dimA[2] < NPROWS || dimA[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
 
 # If Matrix B wasn't given, assume the identity matrix as the RHS
 	if (is.null(B)) {
@@ -88,10 +127,50 @@ sla.solve <- function (A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64,RFLAG=1, SPAWN=1 )
         return (x$x)
 }
 
-sla.svd <- function (A=0, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN=1){
+sla.svd <- function (A, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=16, RFLAG=1, SPAWN=1){
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	if ( RFLAG < 0 )
+	{
+		stop("RFLAG cannot be a negative value.");
+	}
+
+	if ( SPAWN < 0 )
+	{
+		stop("SPAWN cannot be a negative value.");
+	}
+
+
+
+# Check for unsupported datatype
+
+	if (is.complex(A) ) {
+		print("Complex datatype is not supported in this version.");
+	}
 
 # Save the dimensions of the matrices
 	dimA = dim(A)
+
+	if ( dimA[1] < NPROWS || dimA[1] < NPCOLS || dimA[2] < NPROWS || dimA[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
 
 # Force the matrices to be REALSXPs
 	A <- as.real(A)
@@ -103,7 +182,7 @@ sla.svd <- function (A=0, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, 
 #		B = as.real(NULL)
 		temp = as.real(min(dim(A)))
 		B = c(temp, temp)
-		print (B)
+		#print (B)
 	} else {
 		if (is.null(nv)) {
 			B = c(nu, min(dim(A)))
@@ -138,10 +217,51 @@ sla.svd <- function (A=0, nu=NULL, nv=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, 
 	return (x)
 }
 
-sla.qr <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 ){
+sla.qr <- function (A, NPROWS=0, NPCOLS=0, MB=16, RFLAG = 1, SPAWN = 1 ){
+
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	if ( RFLAG < 0 )
+	{
+		stop("RFLAG cannot be a negative value.");
+	}
+
+	if ( SPAWN < 0 )
+	{
+		stop("SPAWN cannot be a negative value.");
+	}
+
+
+ 
+# Check for unsupported datatype
+
+    if (is.complex(A) ) {
+        print("Complex datatype is not supported in this version.");
+    }
+
 
 # Save the dimensions of the matrix
 	dimA = dim(A)
+	if ( dimA[1] < NPROWS || dimA[1] < NPCOLS || dimA[2] < NPROWS || dimA[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
 
 # Force the matrix to be REALSXPs
 	A <- as.real(A)
@@ -177,11 +297,60 @@ sla.qr <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 ){
 	return (x)
 }
 
+sla.chol <- function (A, NPROWS=0, NPCOLS=0, MB=16, RFLAG = 1, SPAWN = 1 ){
 
-sla.chol <- function (A=0, NPROWS=0, NPCOLS=0, MB=64, RFLAG = 1, SPAWN = 1 ){
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	if ( RFLAG < 0 )
+	{
+		stop("RFLAG cannot be a negative value.");
+	}
+
+	if ( SPAWN < 0 )
+	{
+		stop("SPAWN cannot be a negative value.");
+	}
+
+
+# Check for unsupported datatype
+
+    if (is.complex(A)) {
+        print("Complex datatype is not supported in this version.");
+    }
+
+
+
 
 # Save the dimensions of the matrices
 	dimA = dim(A)
+
+	if ( dimA[1] < NPROWS || dimA[1] < NPCOLS || dimA[2] < NPROWS || dimA[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
+
+# Check for square matrix
+
+	if ( dimA[1] != dimA[2] )
+	{
+		stop("non-square matrix in 'sla.eigen'");
+	}
+
 
 # Force the matrices to be REALSXPs
 	A <- as.real(A)
@@ -210,10 +379,52 @@ sla.chol <- function (A=0, NPROWS=0, NPCOLS=0, MB=64, RFLAG = 1, SPAWN = 1 ){
      return (x$x)
 }
 
-sla.chol2inv <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 ){
+sla.chol2inv <- function (A, NPROWS=0, NPCOLS=0, MB=16, RFLAG = 1, SPAWN = 1 ){
+
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	if ( RFLAG < 0 )
+	{
+		stop("RFLAG cannot be a negative value.");
+	}
+
+	if ( SPAWN < 0 )
+	{
+		stop("SPAWN cannot be a negative value.");
+	}
+
+
+
+# Check for unsupported datatype
+
+    if (is.complex(A) ) {
+        print("Complex datatype is not supported in this version.");
+    }
+
 
 # Save the dimensions of the matrix
 	dimA = dim(A)
+
+	if ( dimA[1] < NPROWS || dimA[1] < NPCOLS || dimA[2] < NPROWS || dimA[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
 
 # Force the matrix to be REALSXPs
 	A <- as.real(A)
@@ -240,10 +451,50 @@ sla.chol2inv <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 )
 	return (x$x)
 }
 
-sla.eigen <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 ){
+sla.eigen <- function (A, NPROWS=0, NPCOLS=0, MB=16, RFLAG = 1, SPAWN = 1 ){
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	if ( RFLAG < 0 )
+	{
+		stop("RFLAG cannot be a negative value.");
+	}
+
+	if ( SPAWN < 0 )
+	{
+		stop("SPAWN cannot be a negative value.");
+	}
+
+
+# Check for unsupported datatype
+
+    if (is.complex(A) ) {
+        print("Complex datatype is not supported in this version.");
+    }
+
 
 # Save the dimensions of the matrix
 	dimA = dim(A)
+
+	if ( dimA[1] < NPROWS || dimA[1] < NPCOLS || dimA[2] < NPROWS || dimA[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
 
 # Force the matrix to be REALSXPs
 	A <- as.real(A)
@@ -255,6 +506,13 @@ sla.eigen <- function (A=0, NPROWS=0, NPCOLS=0, MB=48, RFLAG = 1, SPAWN = 1 ){
 	if (is.null(t)) return
 	NPROWS=t[1]
 	NPCOLS=t[2]
+
+# Check for square matrix
+
+	if ( dimA[1] != dimA[2] )
+	{
+		stop("non-square matrix in 'sla.eigen'");
+	}
 
 # Check block size for proper distribution
 	MB = sla.checkBlockSize(dimA, MB)
@@ -286,8 +544,8 @@ sla.ProcessRowsColumns <- function(NPROWS, NPCOLS) {
 # If the user didn't specify a grid, but a grid was found in the root
 # environment space, use that (but give a warning.)
     if (NPROWS == 0 && exists(".RscalaGrid") && is.numeric(.RscalaGrid)) {
-        NPROWS = .RscalaGrid[1];
-        NPCOLS = .RscalaGrid[2];
+        NPROWS = .RscalaGrid$NPROWS
+        NPCOLS = .RscalaGrid$NPCOLS
         if (is.na(NPCOLS)) NPCOLS = 0
         if (is.na(NPROWS) || NPROWS < 1 || NPCOLS < 0) {
             print("Bad grid found in .RscalaGrid, ignoring")
@@ -320,18 +578,51 @@ sla.ProcessRowsColumns <- function(NPROWS, NPCOLS) {
     return( c(NPROWS, NPCOLS) )
 }
 
-sla.gridInit <- function (NPROCS=0) {
-	inputVector <- list(as.real(NULL), as.real(NULL), as.integer(NPROCS),
-		as.integer(1), as.integer(0), as.integer(0), as.integer(0),
+sla.gridInfo <- function () {
+	x<-.External("PA_GridInfo", PACKAGE="RScaLAPACK");
+	
+	invisible(x);
+}
+
+sla.gridInit <- function (NPROWS=1, NPCOLS=1, BLOCKSIZE=16) {
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( BLOCKSIZE < 0 )
+	{
+		stop("BLOCKSIZE cannot be a negative value.");
+	}
+
+
+	if (exists(".RscalaGrid", envir=.GlobalEnv)) {
+		stop("Attempt to spawn a new grid without releasing the previous grid.");	
+	}
+	inputVector <- list(as.real(NULL), as.real(NULL), as.integer(NPROWS),
+		as.integer(NPCOLS), as.integer(BLOCKSIZE), as.integer(0), as.integer(0),
 		as.integer(1))
+
+	.RscalaGrid = list(NPROWS = NPROWS, NPCOLS = NPCOLS, BLOCKSIZE = BLOCKSIZE)
+	assign(".RscalaGrid", .RscalaGrid, env = .GlobalEnv);
+
 	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
-		print (" Process Grid Initialized " ) 
+		print ("RScaLAPACK:Process Grid Initialized " ) 
 	}
 
 sla.gridExit <- function() {
-	inputVector <- list(as.real(NULL),as.real(NULL),as.integer(0),as.integer(0),as.integer(0), as.integer(0), as.integer(1),as.integer(0))
-	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector)
-        print (" Process Grid Released ... " )  
+	inputVector <- list(as.real(NULL),as.real(NULL),as.integer(0),as.integer(0),as.integer(0), as.integer(0), as.integer(1),as.integer(0));
+	x <- PA.exec("RScaLAPACK", "pdgesv.R",inputVector);
+	rm( ".RscalaGrid", envir=.GlobalEnv);
+    print ("RScaLAPACK:Process Grid Released " )  
 }
 
 sla.checkBlockSize <-function(tdimA, tMB) {
@@ -339,14 +630,60 @@ sla.checkBlockSize <-function(tdimA, tMB) {
 	if (temp > 32768 ){
 		temp1 = (tdimA[1] * tdimA[2]) / 32768
 		return (temp1)
-
 	} else {
-		return (tMB)
+		smallerDim = ifelse( tdimA[1] < tdimA[2], tdimA[1], tdimA[2]);
+		temp1 = ifelse( (tMB > smallerDim), (smallerDim-1), tMB );
+
+		if ( temp1 == tMB )
+		{
+			return(tMB);
+		}
+		else
+		{
+			print("Warning:Block size is higher than the lowest dimension, forcing it to lowest dim");
+			return(temp1);
+		}
 	}
 }
 	
+sla.multiply <- function( A, B=NULL, NPROWS=0, NPCOLS=0, MB=16, RFLAG=1, SPAWN=1 ) {
 
-sla.multiply <- function( A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN=1 ) {
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	if ( RFLAG < 0 )
+	{
+		stop("RFLAG cannot be a negative value.");
+	}
+
+	if ( SPAWN < 0 )
+	{
+		stop("SPAWN cannot be a negative value.");
+	}
+
+
+
+# Check for unsupported datatype
+
+    if (is.complex(A) || is.complex(B) ) {
+        print("Complex datatype is not supported in this version.");
+    }
+
 
 #Check for availability of second matrix
         if ( is.matrix(B) == FALSE )
@@ -358,6 +695,11 @@ sla.multiply <- function( A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN
 #Get matrix sizes
         dimA = dim(A)
         dimB = dim(B)
+
+		if ( dimA[1] < NPROWS || dimA[1] < NPCOLS || dimA[2] < NPROWS || dimA[2] < NPCOLS )
+		{
+			stop("Input matrix is smaller than process grid");
+		}
         
 #Get metrix dimensions
         dimAlength = length(dimA)
@@ -366,7 +708,7 @@ sla.multiply <- function( A=0, B=NULL, NPROWS=0, NPCOLS=0, MB=64, RFLAG=1, SPAWN
 #Check for 2D matrix
         if( dimAlength != 2 || dimBlength != 2 )
         {       
-                stop("One \(or both\) of the matrices is not a 2D matrix.\n3D matrices are not yes supported.")
+                stop("One (or both) of the matrices is not a 2D matrix.\n3D matrices are not yes supported.")
         }
 
 #Check for crossproduct rule conformity, Cik = Aij*Bjk

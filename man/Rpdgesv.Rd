@@ -2,7 +2,7 @@
 \title{Solve a System of Equations using Scalapack functions}
 \usage{
 
-sla.solve(A, B, NPROWS, NPCOLS, MB, RFLAG, SPAWN)
+sla.solve(A, B=NULL, NPROWS=0, NPCOLS=0, MB=16,RFLAG=1, SPAWN=1 )
 
 }
 \alias{sla.solve}
@@ -53,12 +53,12 @@ computation.}
 
 \examples{
 library(RScaLAPACK)
-rnorm(100)->x
-dim(x)=c(10,10)
-c(1,0*(1:9))->y
-dim(y)=c(10,1)
-sla.solve(x,y)
+rnorm(10000)->x
+dim(x)=c(100,100)
+c(1,0*(1:99))->y
+dim(y)=c(100,1)
+sla.solve(x,y, NPROWS=2, NPCOLS=2)
 }
-
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}

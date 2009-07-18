@@ -24,7 +24,6 @@ sla.prcomp(x, retx=TRUE, center=TRUE, scale.=FALSE, tol=NULL, NPROWS, NPCOLS, MB
 
 \description{
 	The function \code{sla.prcomp} performs a principal components analysis on the give data matrix (using \code{sla.svd}) and returns the results as a object of class \code{prcomp}.}
-}
 
 \details{
 	If the number of processor rows and columns are both zero, one processor
@@ -50,10 +49,9 @@ sla.prcomp(x, retx=TRUE, center=TRUE, scale.=FALSE, tol=NULL, NPROWS, NPCOLS, MB
 }
 
 \examples{
-library(RScaLAPACK)
 data(USArrests)
-sla.prcomp(USArrests, scale=TRUE)
+sla.prcomp(USArrests, scale=TRUE, NPROWS=2, NPCOLS=2, MB=2)
 }
-
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}

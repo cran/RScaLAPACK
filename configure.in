@@ -1,3 +1,33 @@
+dnl/*======================================================================
+dnl *           R-ScaLAPACK version 0.4.x:  ScaLAPACK interface to R
+dnl *              Oak Ridge National Laboratory, Oak Ridge TN.
+dnl *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+dnl *                            Srikanth Yoginath.
+dnl *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
+dnl *     Contact: Guruprasad Kora; (865) 576-6210; koragh@ornl.gov
+dnl *                 Computer Science and Mathematics Division
+dnl *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
+dnl *                   (C) 2004 All Rights Reserved
+dnl *
+dnl *                              NOTICE
+dnl *
+dnl * Permission to use, copy, modify, and distribute this software and
+dnl * its documentation for any purpose and without fee is hereby granted
+dnl * provided that the above copyright notice appear in all copies and
+dnl * that both the copyright notice and this permission notice appear in
+dnl * supporting documentation.
+dnl *
+dnl * Neither the Oak Ridge National Laboratory nor the Authors make any
+dnl * representations about the suitability of this software for any
+dnl * purpose.  This software is provided ``as is'' without express or
+dnl * implied warranty.
+dnl *
+dnl * RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
+dnl * as part of the Scientific Data Management Center
+dnl * (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
+dnl * Scientific Discovery through Advanced Computing (DOE SciDAC) program
+dnl * (http://www.scidac.org ). 
+dnl=========================================================================*/
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(DESCRIPTION)
@@ -18,9 +48,11 @@ dnl Checks for programs
 supply_mpi=no
 supply_blacs=no
 supply_blas=no
+supply_lapack=no
 supply_scalapack=no
 MPI_LAM=no
 MPI_MPICH=no
+OMPI=no
 ATLAS_BLAS=yes
 
 AC_ARG_WITH(mpi,
@@ -45,6 +77,13 @@ AC_ARG_WITH(blas,
  AC_MSG_NOTICE(BLAS_LIB=${BLAS_LIB} .. is set)
 ])
 
+AC_ARG_WITH(lapack,
+[  --with-lapack=/usr/local/lib	     Location of LAPACK libraries],
+[LAPACK_LIB=${withval}
+ supply_lapack=yes
+ AC_MSG_NOTICE(LAPACK_LIB=${LAPACK_LIB} .. is set)
+])
+
 
 AC_ARG_WITH(scalapack,
 [  --with-scalapack=/usr/local/lib	 Location of SCALAPACK library],
@@ -56,14 +95,21 @@ AC_ARG_WITH(scalapack,
 dnl Checks for libraries
 
 AC_LANG(C)
+dnl AC_CHECK_LIB(g2c,c_sqrt,LIBG2C="-lg2c",LIBG2C="")
+#AC_CHECK_LIB(g2c, main)
 
 if test "${supply_mpi}" = yes; then
 	LDFLAGS="-L${MPI_HOME}/lib ${LDFLAGS}"
 fi
 
 if test "${supply_blas}" = yes; then
-	LDFLAGS="-L${BLAS_LIB}/lib ${LDFLAGS}"
+	LDFLAGS="-L${BLAS_LIB} ${LDFLAGS}"
 fi
+
+if test "${supply_lapack}" = yes; then
+	LDFLAGS="-L${LAPACK_LIB} ${LDFLAGS}"
+fi
+
 
 if test "${supply_blacs}" = yes; then
 	LDFLAGS="-L${BLACS_LIB} ${LDFLAGS}"
@@ -78,135 +124,21 @@ AC_CHECK_LIB(pthread, pthread_atfork,[
 	],[
 	echo "pThread Not found"])
 
-AC_MSG_CHECKING([for LAM-MPI])
 
-if test "${supply_mpi}" = yes; then
-	AC_MSG_CHECKING([LAM-MPI Libraries at ${MPI_HOME}])
+if test "${supply_lapack}" = yes; then
 
-	
-	if test -d ${MPI_HOME}/lib; then
-		AC_MSG_NOTICE(LAM-MPI lib detected @ ${MPI_HOME}..)
 
-		if test -f ${MPI_HOME}/lib/liblam.a; then
-			PALIBS="-llam ${PALIBS}"
-			MPI_LAM=yes
-		else
-			AC_MSG_NOTICE(LAM-liblam.a not found)
-			MPI_LAM=no
-		fi
-		
-		if test -f ${MPI_HOME}/lib/libmpi.a; then
-			PALIBS="-lmpi ${PALIBS}"
-			MPI_LAM=yes
-		else
-			AC_MSG_NOTICE(LAM-libmpi.a not found)
-			MPI_LAM=no
-		fi
-		
-		if test -f ${MPI_HOME}/lib/liblamf77mpi.a; then
-			LIBS="-llamf77mpi ${PALIBS} ${LIBS}"
-			MPI_LAM=yes
-		else
-			AC_MSG_NOTICE(LAM-liblamf77mpi.a not found)
-			MPI_LAM=no
-		fi
-		
+	if test -f ${LAPACK_LIB}/liblapack.a; then
+		LIBS="-llapack ${LIBS}"
+	elif test -f ${SCALAPACK_LIB}/libreflapack.a; then
+		LIBS="${SCALAPACK_LIB}/libreflapack.a  ${LIBS}"
 	else
-		AC_MSG_NOTICE(LAM-MPI libraries were not detected @ ${MPI_HOME} ..)
-		MPI_LAM=no
+		AC_MSG_NOTICE(liblapack.a not found)
+		LAPACK_LIB=no
 	fi
-else
-	AC_MSG_CHECKING([LAM-MPI Libraries in the system])
 
-	AC_SEARCH_LIBS(lam_rtrstore,mpi lamf77mpi lam,[
-		AC_CHECK_LIB(lam, lam_rtrstore,[
-			LIBS="-llam ${PALIBS} ${LIBS}"	
-			PALIBS="-llam ${PALIBS}"	
-			MPI_LAM=yes
-			],[
-			AC_MSG_NOTICE(LAM-liblam.a not found)
-			MPI_LAM=no
-			])
-		AC_CHECK_LIB(mpi, MPI_Comm_spawn,[
-			PALIBS="-lmpi ${PALIBS}"
-			LIBS="-lmpi ${LIBS}"
-			MPI_LAM=yes
-			],[
-			AC_MSG_NOTICE(LAM-libmpi.a not found)
-			MPI_LAM=no
-			])
-		AC_CHECK_LIB(lamf77mpi, mpi_comm_create__,[
-			LIBS="-llamf77mpi ${LIBS}"
-			MPI_LAM=yes
-			],[
-			AC_MSG_NOTICE(LAM-liblamf77mpi.a not found)
-			MPI_LAM=no
-			])
-		],[
-		AC_MSG_NOTICE([Lam-Libraries not found ..])
-		MPI_LAM=no
-		]
-	)
 fi
 
-if test "${MPI_LAM}" = no; then
-	AC_MSG_CHECKING([for MPICH])
-
-	if test "${supply_mpi}" = yes; then
-		AC_MSG_CHECKING([MPI Libraries in ${MPI_HOME}])
-		
-		if test -d ${MPI_HOME}/lib; then
-			AC_MSG_NOTICE(MPICH2-lib detected @ ${MPI_HOME}..)
-
-				
-			if test -f ${MPI_HOME}/lib/libmpich.a; then
-				PALIBS="-lmpich ${PALIBS}"
-				MPI_MPICH=yes
-			else
-				AC_MSG_NOTICE(libmpich.a not found)
-				MPI_MPICH=no
-			fi
-
-			if test -f ${MPI_HOME}/lib/libfmpich.a; then
-				LIBS="-lfmpich ${PALIBS} ${LIBS}"
-				MPI_MPICH=yes
-			else
-				AC_MSG_NOTICE(libfmpich.a not found)
-				MPI_MPICH=no
-			fi
-
-		else
-			AC_MSG_NOTICE("MPICH2 libraries were not detected @ ${MPI_HOME} ..")
-			MPI_MPICH=no
-		fi
-	else
-
-		AC_SEARCH_LIBS(MPI_Comm_spawn, mpich fmpich,[
-			AC_CHECK_LIB(mpich, MPI_Intercomm_merge,[
-				PALIBS="-lmpich"	
-dnl				LIBS="-lmpich ${LIBS}"	
-				MPI_MPICH=yes
-				],[
-				AC_MSG_ERROR(libmpich.a not found,-1)
-				])
-			
-			AC_CHECK_LIB(fmpich, mpi_comm_create__,[
-				LIBS="-lfmpich ${LIBS}"
-				MPI_MPICH=yes
-				],[
-					AC_MSG_ERROR(libfmpich.a not found,-1)
-				])
-				],[
-				AC_MSG_NOTICE([MPICH-Libraries not found ..])
-				MPI_MPICH=no
-			]
-		)
-	fi		
-fi
-
-if test "${MPI_LAM}" = no && test "${MPI_MPICH}" = no; then
-	AC_MSG_ERROR(Neither MPICH nor LAM found ..exiting, -1)
-fi
 
 if test "${supply_blas}" = yes || test "${supply_scalapack}" = yes; then
 
@@ -236,6 +168,9 @@ if test "${supply_blas}" = yes || test "${supply_scalapack}" = yes; then
 	
 		elif test -f ${SCALAPACK_LIB}/libblas.a; then
 			LIBS="-lblas ${LIBS}"
+
+		elif test -f ${BLAS_LIB}/librefblas.a; then
+			LIBS="-lrefblas ${LIBS}"
 
 		else
 			AC_MSG_ERROR(libblas.a not found,-1)
@@ -273,6 +208,12 @@ if test "${supply_blacs}" = yes || test "${supply_scalapack}" = yes; then
 	elif test -f ${SCALAPACK_LIB}/libblacs.a;  then
 		LIBS="-lblacs ${LIBS}"
 
+	elif test -f ${BLACS_LIB}/libblacs.a;  then
+		LIBS="${BLACS_LIB}/blacs.a ${LIBS}"
+
+	elif test -f ${SCALAPACK_LIB}/blacs.a;  then
+		LIBS="${SCALAPACK_LIB}/blacs.a ${LIBS}"
+
 	else
 		AC_MSG_ERROR(libblacs.a not found,-1)
 	fi
@@ -283,6 +224,12 @@ if test "${supply_blacs}" = yes || test "${supply_scalapack}" = yes; then
 	elif test -f ${SCALAPACK_LIB}/libblacsCinit.a;  then
 		LIBS="-lblacsCinit ${LIBS}"
 
+	elif test -f ${BLACS_LIB}/libblacsC.a;  then
+		LIBS="${BLACS_LIB}/blacsC.a ${LIBS}"
+
+	elif test -f ${SCALAPACK_LIB}/blacsC.a;  then
+		LIBS="${SCALAPACK_LIB}/blacsC.a ${LIBS}"
+
 	else
 		AC_MSG_ERROR(libblacsCinit.a not found,-1)
 	fi
@@ -292,6 +239,12 @@ if test "${supply_blacs}" = yes || test "${supply_scalapack}" = yes; then
 
 	elif test -f ${SCALAPACK_LIB}/libblacsF77init.a;  then
 		LIBS="-lblacsF77init ${LIBS}"
+
+	elif test -f ${BLACS_LIB}/libblacs77F.a;  then
+		LIBS="${BLACS_LIB}/blacsF77.a ${LIBS}"
+
+	elif test -f ${SCALAPACK_LIB}/blacsF77.a;  then
+		LIBS="${SCALAPACK_LIB}/blacsF77.a ${LIBS}"
 
 	else
 		AC_MSG_ERROR(libcblacsF77init.a not found,-1)
@@ -329,41 +282,144 @@ else
 fi
 
 
-dnl Checks for header files
+AC_ARG_WITH(mpi,
+[   --with-mpi=/opt/lib32/usr/lib          Location of MPI library.],
+[   if test "${withval}" != no; then
+        MPI_ROOT=${withval}
+        MPI_INCLUDE="-I${MPI_ROOT}/include"
+        LDFLAGS="$LDFLAGS -L${withval}/lib"
+        CFLAGS="$CFLAGS -I${withval}/include"
+    fi  ]
+)
 
-if test "${supply_mpi}" = yes; then
+dnl if test "$MPI_ROOT"==""; then
+dnl   for d in /opt/lib /usr /usr/lib /usr/lib64 /usr/local/lib /usr/local; do
+dnl     if test -f $d/lam/include/mpi.h && test -f $d/lam/lib/libmpi.so; then
+dnl       echo "I am here $d/lam"
+dnl       MPI_ROOT=$d/lam
+dnl       break
+dnl     elif test -f $d/mpi/include/mpi.h; then
+dnl       echo "I am here $d/mpi"
+dnl       MPI_ROOT=$d/mpi
+dnl       break
+dnl     elif test -f $d/mpich/include/mpi.h; then
+dnl       echo "I am here $d/mpich"
+dnl       MPI_ROOT=$d/mpich
+dnl       break
+dnl     elif test -f $d/include/mpi.h; then
+dnl       echo "I am here $d"
+dnl       MPI_ROOT=$d
+dnl       break
+dnl     fi
+dnl   done
+dnl fi
 
-	if test -f ${MPI_HOME}/include/mpi.h; then
-		CFLAGS="-I${MPI_HOME}/include ${CFLAGS}"
-	fi
-	
+if test -n "$MPI_ROOT"; then
+    echo "Try to find mpi.h ..."
+    if test -f ${MPI_ROOT}/include/mpi.h; then
+         echo "Found in ${MPI_ROOT}/include"
+         MPI_INCLUDE="-I${MPI_ROOT}/include"
+    elif test -f /usr/include/lam/mpi.h; then
+         echo "Found in /usr/include/lam"
+         MPI_INCLUDE="-I/usr/include/lam"
+    elif test -f /usr/local/include/mpi.h; then
+         echo "Found in /usr/local/include"
+         MPI_INCLUDE="-I/usr/local/include"
+    else 
+         echo "Cannot find mpi head file"
+         echo "Please use --with-mpi=/path/to/mpi or specify the environment variable MPI_ROOT"
+         exit 1
+    fi
 else
-	AC_CHECK_HEADER([mpi.h],[],[
-		AC_MSG_ERROR(mpi.h not found,-1)
-		],)
+    AC_CHECK_HEADER(mpi.h)
+fi 
 
-fi
+echo "Try to find libmpi or libmpich ..."
+if test -f ${MPI_ROOT}/lib/libmpi.so; then
+        echo "Found libmpi in ${MPI_ROOT}/lib"
+		OMPI=yes;	
+        MPI_LIBS="-L${MPI_ROOT}/lib -lmpi -lmpi_f77"
+	if test -d  ${MPI_ROOT}/lib/openmpi; then
+        	echo "Found openmpi dir in ${MPI_ROOT}/lib"
+		MPI_DEPS="-DOMPI"
+	fi
+elif test -f ${MPI_ROOT}/lib64/lam/libmpi.so; then
+        echo "Found libmpi in ${MPI_ROOT}/lib64/lam"
+		MPI_LAM=yes;
+        MPI_LIBS="-L${MPI_ROOT}/lib64/lam -lmpi"
+		MPI_DEPS="-DLAMMPI"
+elif test -f ${MPI_ROOT}/lib/libmpich.a; then
+        echo "Found libmpich in ${MPI_ROOT}/lib"
+		MPI_MPICH=yes;
+        MPI_LIBS="${MPI_ROOT}/lib/libmpich.a"
+		MPI_DEPS="-DMPICH"
+else
+    AC_CHECK_LIB(mpi, main,
+    	[   MPI_LIBS="-L${MPI_ROOT}/lib -lmpi"  ],
+    	[   echo "libmpi not found. exiting..."
+        	exit 1  ]
+)
+fi    
+
+echo "Try to find liblam ..."
+if test -f ${MPI_ROOT}/lib/liblam.a; then
+        echo "Found liblam in ${MPI_ROOT}/lib"
+        MPI_LIBS="${MPI_LIBS} -llam"
+		MPI_DEPS="-DLAMMPI"
+elif test -f ${MPI_ROOT}/lib64/lam/liblam.so; then
+        echo "Found liblam in ${MPI_ROOT}/lib64/lam"
+        MPI_LIBS="${MPI_LIBS} -llam"
+		MPI_DEPS="-DLAMMPI"
+else
+    AC_CHECK_LIB(lam, main,
+    	[   MPI_LIBS="$MPI_LIBS -llam" 
+	    MPI_DEPS="-DLAMMPI" ],
+    	[   echo "liblam not found. Probably not LAM-MPI"]
+    )
+fi    
+
+#AC_CHECK_LIB(util, openpty, [ MPI_LIBS="$MPI_LIBS -lutil" ])
+AC_CHECK_LIB(pthread, main, [ MPI_LIBS="$MPI_LIBS -lpthread" ])
+
+
+PKG_LIBS="${MPI_LIBS}"
+PKG_CPPFLAGS="${MPI_INCLUDE} ${MPI_DEPS} -fPIC"
+
+
+AC_SUBST(PKG_LIBS)
+AC_SUBST(PKG_CPPFLAGS)
+AC_SUBST(DEFS)
+
+CFLAGS="${PKG_CPPFLAGS} ${CFLAGS}"
+LIBS="${PKG_LIBS} ${LIBS}"
+PALIBS="${PKG_LIBS} ${LIBS}"
+
+
+CC=`${R_HOME}/bin/R CMD config CC`;
+CXX=`${R_HOME}/bin/R CMD config CXX`;
+RINC=`${R_HOME}/bin/R CMD config --cppflags`
 
 echo "Configured Parameters ..."
 echo "LIBS = ${LIBS}"
 echo "LDFLAGS = ${LDFLAGS}"
-echo "CFLAGS = ${CFLAGS}"
+echo "CFLAGS = ${CFLAGS} ${RINC}"
 echo "PALIBS = ${PALIBS}"
 echo "...  *** ..."
+AC_SUBST(LIBS)
+AC_SUBST(PALIBS)
+AC_SUBST(CFLAGS)
 
-dnl Checks for typedefs
-dnl Checks for structures
-dnl Checks for compiler characteristics
-dnl Checks for library functions
-dnl AC_CHECK_FUNCS(MPI_Comm_spawn MPI_Intercomm_merge)
-dnl Checks for system services
-
-dnl AC_OUTPUT()
 AC_SUBST(PALIBS)
 AC_OUTPUT(src/Makefile)
 
 if test "${MPI_MPICH}" = yes; then
 	AC_OUTPUT(R/StartUpMpich2.R)
-else
+fi
+
+if test "${MPI_LAM}" = yes; then
 	AC_OUTPUT(R/StartUpLam.R)
+fi
+
+if test "${OMPI}" = yes; then
+	AC_OUTPUT(R/StartUpOmpi.R)
 fi

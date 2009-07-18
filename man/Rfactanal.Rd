@@ -9,7 +9,7 @@
 \usage{
 sla.factanal(x, factors, data = NULL, covmat = NULL, n.obs = NA, subset, na.action,
 start = NULL, scores = c("none", "regression", "Bartlett"), rotation = "sla.varimax",
-control = NULL, NPROWS = 0, NPCOLS = 0, MB = 64, \dots)
+control = NULL, NPROWS = 0, NPCOLS = 0, MB = 16, \dots)
 }
 \arguments{
   \item{x}{Either a formula or a numeric matrix or an object that can be
@@ -85,7 +85,7 @@ control = NULL, NPROWS = 0, NPCOLS = 0, MB = 64, \dots)
   uniquenesses can be found analytically: Lawley & Maxwell (1971,
   p. 27).)  All the starting values supplied in \code{start} are tried
   in turn and the best fit obtained is used.  If \code{start = NULL}
-  then the first fit is started at the value suggested by Jöreskog
+  then the first fit is started at the value suggested by Jreskog
   (1963) and given by Lawley & Maxwell (1971, p. 31), and then
   \code{control$nstart - 1} other values are tried, randomly selected
   as equal values of the uniquenesses.
@@ -141,7 +141,7 @@ control = NULL, NPROWS = 0, NPCOLS = 0, MB = 64, \dots)
   Bartlett, M. S. (1938) Methods of estimating mental
   factors. \emph{Nature}, \bold{141}, 609--610.
   
-  Jöreskog, K. G. (1963) \emph{Statistical Estimation in Factor
+  Jreskog, K. G. (1963) \emph{Statistical Estimation in Factor
     Analysis.}  Almqvist and Wicksell.
   
   Lawley, D. N. and Maxwell, A. E. (1971) \emph{Factor Analysis as a
@@ -172,14 +172,8 @@ v5 <- c(1,1,1,1,1,3,3,3,3,3,1,1,1,1,1,6,4,5)
 v6 <- c(1,1,1,2,1,3,3,3,4,3,1,1,1,2,1,6,5,4)
 m1 <- cbind(v1,v2,v3,v4,v5,v6)
 cor(m1)
-sla.factanal(m1, factors=3) # varimax is the default
-sla.factanal(m1, factors=3, rotation="sla.promax")
-# The following shows the g factor as PC1
-sla.prcomp(m1)
-
-## formula interface
-sla.factanal(~v1+v2+v3+v4+v5+v6, factors = 3,
-         scores = "Bartlett")$scores
+sla.factanal(m1, factors=3, rotation="sla.promax", NPROWS=2, NPCOLS=2, MB=2 )
 }
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{multivariate}

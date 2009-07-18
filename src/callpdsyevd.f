@@ -4,6 +4,7 @@
 *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
 *                            Srikanth Yoginath.
 *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
+*     Contact: Guruprasad Kora; (865) 576-6210; koragh@ornl.gov
 *                 Computer Science and Mathematics Division
 *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
 *                   (C) 2004 All Rights Reserved
@@ -146,6 +147,11 @@
       IPZ = IPW + N
       IPIWORK = IPZ + DESCZ (LLD_) * NUMC_Z
       IPWORK = IPIWORK +  LIWORK
+
+*      PRINT *, 'Rank=', IAM, ' IPA=', IPA, 
+*     $     ' IPW=', IPW, ' IPZ=', IPZ, 
+*     $     ' IPIWORK=', IPIWORK, ' IPWORK = ', IPWORK, 
+*     $     ' LIWORK = ', LIWORK, '\n\n'
       
 
 *      PRINT *, 'Pointer assigning successful'
@@ -162,6 +168,9 @@
       IF ( INFO.EQ.0 ) THEN
             LWORK = MEM ( IPWORK )
 
+*            PRINT *, 'Rank=', IAM, ' LWORK=', LWORK, 
+*     $      ' IPWORK=', IPWORK, 'MEMSIZ=', MEMSIZ,  '\n\n'
+
             IF ( LWORK.EQ.TEMP) THEN
 *                 PRINT *, 'LWORK  EQ TEMP ', LWORK, TEMP
             ELSE
@@ -169,8 +178,8 @@
             ENDIF
             
             IF (IPWORK+LWORK-1 .GT. MEMSIZ ) THEN
-                  PRINT *, 'NOT ENOUGH MEMORY .. ', MEMSIZ 
-     $             , IPWORK + LWORK 
+                  PRINT *, 'RANK=', IAM, ' NOT ENOUGH MEMORY .. ',
+     $             MEMSIZ, IPWORK + LWORK 
                   FAILFLAG = 1 
             ENDIF
       ELSE

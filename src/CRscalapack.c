@@ -4,6 +4,7 @@
  *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
  *                            Srikanth Yoginath.
  *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
+ *     Contact: Guruprasad Kora; (865) 576-6210; koragh@ornl.gov
  *                 Computer Science and Mathematics Division
  *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
  *                   (C) 2004 All Rights Reserved
@@ -30,19 +31,26 @@
 #include "CRscalapack.h"
 #include <stdlib.h>
 
+#define DONT_SPAWN_R
+
 #ifdef DONT_SPAWN_R
 #define Rprintf printf
 #endif
 
+
 #define AsInt(x) (SEXP)(x)
 
-/* #define DEBUG_RSCALAPACK */
+#if 0
+#define DEBUG_RSCALAPACK
+#endif
 
 #ifndef DEBUG_RSCALAPACK
 #define D_Rprintf(x)
 #else
 #define D_Rprintf(x) Rprintf x
 #endif
+
+MPI_Comm intercomm;
 
 /* **** CR_Exec ****
  * CR - stands for Child R-scalapack
@@ -58,10 +66,13 @@ SEXP CR_Exec() {
 	int exitTemp =0;
 
 	int ipGridAndDims[10]={0,0,0,0,0,0,0,0,0,0};	/* See CR_GetInputParams
-													 * function for contents.
-													 */
+	 						 * function for contents.
+							 */
 
-	D_Rprintf ((" SPAWNED PROCESS --- starts here !! \n"));
+#ifdef OMPI
+	dlopen("libmpi.so.0", RTLD_GLOBAL | RTLD_LAZY);
+#endif
+
 
 	/* Performing MPI_Init through BLACS */
 	if (CR_InitializeEnv(&iMyRank, &iNumProcs) != 0)	{
@@ -69,13 +80,15 @@ SEXP CR_Exec() {
 		return AsInt(1);
 	}
 
-	D_Rprintf (("Initializing MPI thru BLACS successful \n"));
+
 
 	/* Get the Parent Communicator */
 	if (MPI_Comm_get_parent(&mcParent) != MPI_SUCCESS) {
 		Rprintf("ERROR[2]: Getting Parent Comm ... FAILED .. EXITING !!\n");
 		return AsInt(2);
 	}
+
+
 
 	if (mcParent == MPI_COMM_NULL) {
 		char *cpNoParent = "No Parent found.  This program is not designed"
@@ -85,6 +98,7 @@ SEXP CR_Exec() {
 		return AsInt (3);
 	}
 
+
 	while (rel_flag != 1){
 
 		/* Get the broadcasted input parameters from the Parallel Agent */
@@ -93,11 +107,8 @@ SEXP CR_Exec() {
 			return AsInt(4);
 		}
 
-		D_Rprintf(("Success:  Got Input Parameters from ParallelAgent\n"));
 
 		rel_flag = ipGridAndDims[9];
-
-		D_Rprintf(("relflag : %d \n", rel_flag));
 
 
 		/* Call the requested ScaLAPACK Function */
@@ -106,28 +117,35 @@ SEXP CR_Exec() {
 			return AsInt(6);
 		}
 
-		D_Rprintf(("%d: After calling Fortran function (%d)\n", iMyRank, 
-					ipGridAndDims[8]));
 
 		/* If the function ID is 0 and the release flag is 1, then
 		 * the function is sla.gridExit, so exit.
 		 */ 
 		if (ipGridAndDims[8] == 0 && rel_flag == 1){
-			F77_CALL(blacs_exit_)(&exitTemp); 
-			printf ("Exiting BLACS  ... rank =  %d\n",iMyRank);  
+
+			MPI_Comm_free( &intercomm );
+			MPI_Finalize();
 			return AsInt(1); 
 		}
 
 	}	/*  Endof  while (...) */
 
+
+	//MPI_Barrier(intercomm);
+	MPI_Comm_free( &intercomm );
 	MPI_Finalize();
+
 
 	return AsInt(0);
 }
 
 /* Uses BLACS call to perform MPI_Init */
 int CR_InitializeEnv(int *ipMyRank, int *ipNumProcs) {
-	F77_CALL(blacs_pinfo_)(ipMyRank, ipNumProcs);
+#if MPICH
+	F77_CALL(blacs_pinfo)(ipMyRank, ipNumProcs);
+#else
+	F77_CALL( blacs_pinfo )( ipMyRank, ipNumProcs);
+#endif
 	return 0;
 }
 
@@ -145,15 +163,26 @@ int CR_InitializeEnv(int *ipMyRank, int *ipNumProcs) {
 */
 int CR_GetInputParams(MPI_Comm mcParent, int *ipGridAndDims) {
 
-     MPI_Comm intercomm;
+	MPI_Comm parent;
 
-     if(MPI_Intercomm_merge(mcParent, 1, &intercomm)!= MPI_SUCCESS)
-          return -1;
-        
-     if(MPI_Bcast(ipGridAndDims,10, MPI_INT, 0, intercomm) != MPI_SUCCESS) 
-          return -2;
-     else
-          return 0;
+
+	if (MPI_Comm_get_parent(&parent) != MPI_SUCCESS) {
+		Rprintf("ERROR[2]: Getting Parent Comm ... FAILED .. EXITING !!\n");
+		return AsInt(2);
+	}
+
+	if(MPI_Intercomm_merge(parent, 1, &intercomm)!= MPI_SUCCESS)
+		return -1;
+
+	if(MPI_Bcast(ipGridAndDims,10, MPI_INT, 0, intercomm) != MPI_SUCCESS) 
+	{
+		D_Rprintf(("Child: Broadcast error\n"));
+		return -2;
+	}
+	else
+	{
+		return 0;
+	}
 }
 /* ****  CR_CallScalapackFun  ****
  * This function calls the C wrappers around the Fortran wrappers around the
@@ -446,15 +475,30 @@ int CRSF_eigen(int dim[], int iMyRank) {
 	int localSizeOfZ = localRowSizeOfA * localColSizeOfA;
 	int localSizeOfW = colOfA;
 	int sizeOfLIWORK = 7 * colOfA + 8 * NPCol +2;
+
+
 	
 	np =  F77_CALL(numroc)(&colOfA, &colBlockSize, &MyRow, ipZero, &NPRow);
 	nq =  F77_CALL(numroc)(&colOfA, &colBlockSize, &MyCol, ipZero, &NPCol);
 	tRILWMIN = 3 * colOfA + max ( colBlockSize * (np +1) , 3 * colBlockSize);
 	sizeOfLWORK = max (1 + 6 * colOfA + 2*np*nq, tRILWMIN ) + 2 * colOfA;
 
+
+#if 0
+	fprintf(stdout, "%d: localSizeOfA = %d, localSizeOfZ=%d, localSizeOfW = %d, sizeOfLIWORK=%d\n", iMyRank, localSizeOfA, localSizeOfZ, localSizeOfW, sizeOfLIWORK );fflush(stdout);
+#endif
+
+
 	iMemSize = localSizeOfA + localSizeOfZ + localSizeOfW + sizeOfLIWORK + sizeOfLWORK ;
 
 	dpWork = (double *) malloc(sizeof(double) * iMemSize);
+
+	if (dpWork == NULL)
+	{
+		fprintf(stdout, "%s:%d - Error allocating memory.\n", __FILE__, __LINE__ );
+		fflush(stdout);
+
+	}
 	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
 
 	D_Rprintf (("After allocating memory .. \n "));
@@ -533,8 +577,11 @@ int CRSF_svd(int dim[], int iMyRank) {
 
 		D_Rprintf ((" Process 0 ... in cntrl statement ..after init \n"));
 
-			
-		F77_CALL(blacs_get_)(&temp1, &temp2, &ictxt);
+#if MPICH
+		F77_CALL(blacs_get)(&temp1, &temp2, &ictxt);
+#else
+		F77_CALL(blacs_get)(&temp1, &temp2, &ictxt);
+#endif
 		/* Calculate the value for WATOBD */
 
 		D_Rprintf ((" Process 0 ... in cntrl statement ..1 \n"));
@@ -615,21 +662,25 @@ int CRSF_solve(int dim[], int iMyRank) {
 	int localRowSizeOfB = F77_CALL(numroc)(&rowOfB, &rowBlockSize, &MyRow, ipZero, &NPRow);
 	int localColSizeOfB = F77_CALL(numroc)(&colOfB, &colBlockSize, &MyCol, ipZero, &NPCol);
 
+
 	int localSizeOfA = localRowSizeOfA * localColSizeOfA;
 	int localSizeOfB = localRowSizeOfB * localColSizeOfB;
 	int localSizeOfPiv = localRowSizeOfA + rowBlockSize;
 	int localWorkSize = colBlockSize; 
+
+	D_Rprintf(("Child: inside CRSF_solve \n "));
+	
 
 	iMemSize = localSizeOfA + localSizeOfB + localSizeOfPiv + localWorkSize;
 
 	dpWork = (double *) malloc(sizeof(double) * iMemSize);
 	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
 
-	D_Rprintf (("After allocating memory .. \n "));
+	D_Rprintf(("Child: After allocating memory .. \n "));
 	
 	F77_CALL(callpdgesv)(dim, dpWork, &iMemSize);
 
-	D_Rprintf (("AFTER FORTRAN FUNCTION EXECUTION \n "));
+	D_Rprintf (("Child: AFTER FORTRAN FUNCTION EXECUTION \n "));
 
 	free (dpWork);
 
@@ -700,14 +751,14 @@ int CRSF_multiply(int dim[], int iMyRank) {
 
 	iMemSize = iLLD_A * localColSizeOfA + iLLD_B * localColSizeOfB + iLLD_C * localColSizeOfC + colBlockSize + 1;
 
-	D_Rprintf(( "%d/%d: Mem size for me = %d\n", MyRow, MyCol, iMemSize ));
+	D_Rprintf (( "%d/%d: Mem size for me = %d\n", MyRow, MyCol, iMemSize ));
 
 
 
 	dpWork = (double *) malloc(sizeof(double) * iMemSize);
 	memset(dpWork, 0xcc, sizeof(double) * iMemSize);
 
-	D_Rprintf(("%d:  Allocated a work vector of size %d bytes\n",
+	D_Rprintf (("%d:  Allocated a work vector of size %d bytes\n",
 				iMyRank, sizeof(double) * iMemSize));
 
 	F77_CALL(callpdgemm)(dim, dpWork, &iMemSize);

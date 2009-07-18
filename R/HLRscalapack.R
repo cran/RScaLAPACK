@@ -4,6 +4,7 @@
 #        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
 #                            Srikanth Yoginath.
 #     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
+#     Contact: Guruprasad Kora; (865) 576-6210; koragh@ornl.gov
 #                 Computer Science and Mathematics Division
 #             Oak Ridge National Laboratory, Oak Ridge TN 37831 
 #                   (C) 2004 All Rights Reserved
@@ -30,8 +31,37 @@
 # Function PRCOMP using scalapack functions to evaluate linear algebra problems
 # uses sla.svd
 
-sla.prcomp <- function(x,  retx = TRUE, center = TRUE, scale. = FALSE, tol = NULL, NPROWS=0, NPCOLS=0, MB=64)
+sla.prcomp <- function(x,  retx = TRUE, center = TRUE, scale. = FALSE, tol = NULL, NPROWS=0, NPCOLS=0, MB=16)
 {
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	dimX = dim(x);
+
+	if ( dimX[1] < NPROWS || dimX[1] < NPCOLS || dimX[2] < NPROWS || dimX[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
+
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dim(x), MB)
+
+
     x <- as.matrix(x)
     x <- scale(x, center = center, scale = scale.)
     s <- sla.svd(x, nu = 0, NPROWS=NPROWS, NPCOLS=NPCOLS, MB=MB)
@@ -56,8 +86,10 @@ sla.prcomp <- function(x,  retx = TRUE, center = TRUE, scale. = FALSE, tol = NUL
 sla.princomp <- function(x, ...) UseMethod("sla.princomp")
                                                                                 
 ## use formula to allow update() to be used.
-sla.princomp.formula <- function(formula, data = NULL, subset, na.action, NPROWS=0, NPCOLS=0, MB=64, ...)
+sla.princomp.formula <- function(formula, data = NULL, subset, na.action, NPROWS=0, NPCOLS=0, MB=16, ...)
 {
+
+
     mt <- terms(formula, data = data)
     if(attr(mt, "response") > 0) stop("response not allowed in formula")
     attr(mt, "intercept") <- 0
@@ -83,8 +115,36 @@ sla.princomp.formula <- function(formula, data = NULL, subset, na.action, NPROWS
 sla.princomp.default <-
     function(x, cor = FALSE, scores = TRUE, covmat = NULL,
              subset = rep(TRUE, nrow(as.matrix(x))),
-               NPROWS=0, NPCOLS=0, MB=64, ...)
+               NPROWS=0, NPCOLS=0, MB=16, ...)
 {
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	dimX = dim(x);
+
+	if ( dimX[1] < NPROWS || dimX[1] < NPCOLS || dimX[2] < NPROWS || dimX[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
+
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dim(x), MB)
+
     cl <- match.call()
     cl[[1]] <- as.name("princomp")
     z <- if(!missing(x)) as.matrix(x)[subset, , drop = FALSE]
@@ -154,8 +214,40 @@ sla.factanal<-
              subset, na.action, start = NULL,
               scores = c("none", "regression", "Bartlett"),
               rotation = "sla.varimax",
-              control = NULL, NPROWS=0, NPCOLS=0, MB=64, ...)
+              control = NULL, NPROWS=0, NPCOLS=0, MB=16, ...)
 {
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	if ( is.matrix(x) )
+	{
+
+		dimX = dim(x);
+
+		if ( dimX[1] < NPROWS || dimX[1] < NPCOLS || dimX[2] < NPROWS || dimX[2] < NPCOLS )
+		{
+			stop("Input matrix is smaller than process grid");
+		}
+		# Check block size for proper distribution
+		MB = sla.checkBlockSize(dim(x), MB)
+	}
+
+
 
     sortLoadings <- function(Lambda)
     {
@@ -291,8 +383,9 @@ sla.factanal<-
 
 
 sla.factanal.fit.mle <-
-function(cmat, factors, start=NULL, lower = 0.005, control = NULL,NPROWS=0,NPCOLS=0,MB=64, ...)
+function(cmat, factors, start=NULL, lower = 0.005, control = NULL,NPROWS=0,NPCOLS=0,MB=16, ...)
 {
+
 FAout <- function(Psi, S, q)
     {
         sc <- diag(1/sqrt(Psi))
@@ -354,8 +447,10 @@ FAout <- function(Psi, S, q)
 
 
 
-sla.varimax <- function(x, normalize = TRUE, eps = 1e-5,NPROWS=0,NPCOLS=0,MB=64)
+sla.varimax <- function(x, normalize = TRUE, eps = 1e-5,NPROWS=0,NPCOLS=0,MB=16)
 {
+
+
     nc <- ncol(x)
     if(nc < 2) return(x)
     if(normalize) {
@@ -381,8 +476,36 @@ sla.varimax <- function(x, normalize = TRUE, eps = 1e-5,NPROWS=0,NPCOLS=0,MB=64)
     list(loadings = z, rotmat = TT)
 }
 
-sla.promax <- function(x, m = 4, NPROWS=0, NPCOLS=0, MB=64)
+sla.promax <- function(x, m = 4, NPROWS=0, NPCOLS=0, MB=16)
 {
+
+# Check for illigal values
+
+	if ( NPROWS < 0 )
+	{
+		stop("NPROWS cannot be a negative value.");
+	}
+
+	if ( NPCOLS < 0 )
+	{
+		stop("NPCOLS cannot be a negative value.");
+	}
+
+	if ( MB < 0 )
+	{
+		stop("MB cannot be a negative value.");
+	}
+
+	dimX = dim(x);
+
+	if ( dimX[1] < NPROWS || dimX[1] < NPCOLS || dimX[2] < NPROWS || dimX[2] < NPCOLS )
+	{
+		stop("Input matrix is smaller than process grid");
+	}
+
+# Check block size for proper distribution
+	MB = sla.checkBlockSize(dim(x), MB)
+
     if(ncol(x) < 2) return(x)
     dn <- dimnames(x)
     xx <- sla.varimax(x)

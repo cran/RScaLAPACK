@@ -27,5 +27,6 @@ sla.solve(x, NPROWS=4)->a
 sla.gridExit()
 
 }
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}

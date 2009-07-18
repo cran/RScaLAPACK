@@ -2,7 +2,7 @@
 \title{Matrix Multiplication using Scalapack function}
 \usage{
 
-sla.multiply(A, B, NPROWS, NPCOLS, MB, RFLAG, SPAWN)
+sla.multiply(A, B=NULL, NPROWS=0, NPCOLS=0, MB=16, RFLAG=1, SPAWN=1 )
 
 }
 \alias{sla.multiply}
@@ -50,12 +50,11 @@ computation.}
 }
 
 \examples{
-library(RScaLAPACK)
-rnorm(100)->x
-dim(x)=c(10,10)
-y<-matrix(rnorm(10*10),10,10)
-sla.multiply(x,y)
+rnorm(10000)->x
+dim(x)=c(100,100)
+y<-matrix(rnorm(100*100),100,100)
+z<-sla.multiply(x,y, NPROWS=2, NPCOLS=2, MB=10);
 }
-
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}

@@ -1,7 +1,7 @@
 \name{sla.qr}
 \title{The QR Decomposition of a Matrix (Using ScaLAPACK)}
 \usage{
-sla.qr(A, NPROWS, NPCOLS, MB, RFLAG, SPAWN)
+sla.qr(A, NPROWS=0, NPCOLS=0, MB=16, RFLAG = 1, SPAWN = 1 )
 }
 \alias{sla.qr}
 \arguments{
@@ -54,10 +54,10 @@ sla.qr(A, NPROWS, NPCOLS, MB, RFLAG, SPAWN)
 
 \examples{
 library(RScaLAPACK)
-rnorm(100)->x
-dim(x)=c(10,10)
-sla.qr(x)
+rnorm(10000)->x
+dim(x)=c(100,100)
+sla.qr(x, NPROWS=2,NPCOLS=2)
 }
-
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}

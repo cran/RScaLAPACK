@@ -1,193 +1,146 @@
+/*======================================================================
+ *           R-ScaLAPACK version 0.6.x:  ScaLAPACK interface to R
+ *              Oak Ridge National Laboratory, Oak Ridge TN.
+ *        Authors: David Bauer, Guruprasad Kora, Nagiza. F. Samatova, 
+ *                            Srikanth Yoginath.
+ *     Contact: Nagiza F. Samatova; (865) 241-4351; samatovan@ornl.gov
+ *     Contact: Guruprasad Kora; (865) 576-6210; koragh@ornl.gov
+ *                 Computer Science and Mathematics Division
+ *             Oak Ridge National Laboratory, Oak Ridge TN 37831 
+ *                   (C) 2004 All Rights Reserved
+ *
+ *                              NOTICE
+ *
+ * Permission to use, copy, modify, and distribute this software and
+ * its documentation for any purpose and without fee is hereby granted
+ * provided that the above copyright notice appear in all copies and
+ * that both the copyright notice and this permission notice appear in
+ * supporting documentation.
+ *
+ * Neither the Oak Ridge National Laboratory nor the Authors make any
+ * representations about the suitability of this software for any
+ * purpose.  This software is provided ``as is'' without express or
+ * implied warranty.
+ *
+ * RScaLAPACK (http://www.aspect-sdm.org/Parallel-R) was funded
+ * as part of the Scientific Data Management Center
+ * (http://sdm.lbl.gov/sdmcenter) under the Department of Energy's 
+ * Scientific Discovery through Advanced Computing (DOE SciDAC) program
+ * (http://www.scidac.org ). 
+=========================================================================*/
+RScaLAPACK (v0.6.1)
+
                              -------------------------------
                               I - INSTALLATION Instructions
                              -------------------------------
 
-RScaLAPACK package is built uses MPI, BLAS, BLACS and ScaLAPACK libraries
-For successful installation read the following instructions carefully.
 
-=================================================================================
+System requirements:
 
-1. Use either MPICH2 or LAM-MPI distributions with RScaLAPACK. 
-	
-	MPICH2:
-	------
-	Download: 
-		http://www-unix.mcs.anl.gov/mpi/mpich2	
-		
-	Installation:
-		A detailed MPICH2 Installation Instructions can be found at
-		www-unix.mcs.anl.gov/mpi/ mpich2/downloads/mpich2-doc-install.pdf
-	
-	RScaLAPACK uses libmpich.a and libfmpich.a libraries. 
+	GNU – gcc toolchain (4.0.0 or higher) – Standard on most Linux distributions.
+	R (R-2.0 or higher)
+	OpenMPI (System provided) - /sw/ewok/ompi/1.2.8/sl5.2_gnu4.1.2
+	ScaLAPACK (Current version) - http://www.netlib.org/scalapack/scalapack_installer.tgz
+	(BLAS, BLACS, LAPACK will be installed as part of ScaLAPACK.)
 
-	 ----
-	| OR |
-	 ----
+1. Instructions to install R 
+----------------------------
 
-	LAM-MPI:
-	-------
-	Download:
-		http://www.lam-mpi.org/7.1/download.php		
+Download http://cran.cnr.berkeley.edu/src/base/R-2/R-2.9.1.tar.gz
+	wget http://cran.cnr.berkeley.edu/src/base/R-2/R-2.9.1.tar.gz
 
-	Installation:
-		A detailed LAM-MPI installation instructions can be found at
-		www.lam-mpi.org/download/files/7.1.1-install.pdf
+Unzip R-2.9.1.tar.gz
+	tar zxvf R-2.9.1.tar.gz
 
-	RScaLAPACK uses liblam.a, libmpi.a and liblamf77mpi.a libraries. 
+Change in to the unzipped directory
 
-====================================================================================
+Execute 
+	./configure --prefix=<path to install>  --enable-R-shlib  
+	make
+	make install
 
-2. BLAS libraries [Recommended: download and install ATLAS]
+Add the above <build directory>/lib to your LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=<build directory>/lib:$LD_LIBRARY_PATH
 
-	ATLAS:
-	-----
-	Download: [ atlas3.6.0.tgz ]
-		http://www.netlib.org/atlas
+Add the above <build directory>/bin to your PATH
+export PATH=<build directory>/bin:$PATH
 
-	Installation:
-		Instructions for installation can be found in the INSTALL.txt
-		in the atlas3.6.0.tgz library.	
+Create R_HOME environment variable.
+export R_HOME=<build_directory>
 
-====================================================================================
+2. Instructions to install OpenMPI
+----------------------------------
 
-3. BLACS libraries
-	BLACS is the Basic Linear Algebra Communication System, built on top of MPI.
+Download http://www.open-mpi.org/software/ompi/v1.3/downloads/openmpi-1.3.3.tar.gz
+	wget http://www.open-mpi.org/software/ompi/v1.3/downloads/openmpi-1.3.3.tar.gz
 
-	Download: [ mpiblacs.tgz ; mpiblacs-patch03.tgz ] - required
-		  [ blacstester.tgz ] - optional (recommended)
-		http://www.netlib.org/blacs
+Unzip openmpi-1.3.3.tar.gz
+	tar zxvf openmpi-1.3.3.tar.gz
 
-	Installation: Follow the steps.
-		(1) Unzip and untar all the files 
-			$ tar -zxvf mpiblacs.tgz
-			$ tar -zxvf mpiblacs-patch03.tgz
-			$ tar -zxvf blacstester.tgz
-		
-		- A BLACS directory containing all relevant files are created
+Change in to the unzipped directory
 
-		(2) Change the "Bmake.inc" file according to your system specifications.
+Execute 
+	./configure --prefix=<path to install>  
+	make
+	make install
 
-		    The "Bmake.inc" file modified to use LAM-MPI and MPICH2 can be found 
-		at the Parallel-R website
+Add the above <build directory>/lib to your LD_LIBRARY_PATH
+	export LD_LIBRARY_PATH=<build directory>/lib:$LD_LIBRARY_PATH
 
-		http://www.aspect-sdm.org/Parallel-R/RScaLAPACK/documentation.html
-
-		(3)
-			$ make mpi
-			
-			Should build the required blacs libraries.
-
-		(4) Make sure that BLACS works correctly before proceeding 
-		    further [ optional ] - recommended 
-			
-			$ make test
-
-		This will create 2 executables in BLACS/TESTING/EXE file ...
-		
-			$ mpirun -np 4 ./xCbtest_MPI_Linux-0		
-			$ mpirun -np 4 ./xFbtest_MPI_Linux-0
-
-		The execution of these suggests proper installation of blacs libraries
-
-		(5) RScaLAPACK uses following libraries
-
-			libblacs.a 
-			libblacsCinit.a
-			libblacsF77init.a
-
-		NOTE:   IF THE BLACS LIBRARIES INSTALLED ARE NAMED DIFFERENT FROM ABOVE, 
-	  		PLEASE CREATE THE SYMBOLIC LINKS WITH THE ABOVE MENTIONED NAMES
-			TO THE BLACS LIBRARIES
-
-			eg: 
-			$ ln -s libblacs.a blacs_MPI_Linux_0.a	
-
-=============================================================================================
-		
-4. ScaLAPACK library
-			
-	Download: [ scalapack.tgz ] 
-		http://www.netlib.org/scalapack/scalapack_home.html
-
-	Installation: Follow the steps
-		(1) Make modifications to the "SLmake.inc" file
-		
-		(2) A sample "SLmake.inc" file for ScaLAPACK installation can be found at
-		 	http://www.aspect-sdm.org/Parallel-R/RScaLAPACK/documentation.html
-
-		(3)  
-			$ make
-			
-			Builds the libscalapack.a library.
-
-		(4)	[ optional ] -- Recommended.
-
-			$ make exe
-
-			Creates executable which can be tested for proper working of ScaLAPACK 
-			library. The executables can be found under "TESTING" directory of 
-			SCALAPACK.  To test
-
-			$ mpirun -np 4 ./xcnep
-			
-			The proper execution of the executable suggests the correct working
-			of the ScaLAPACK library.
-
-==============================================================================================
-
-5. Building RScaLAPACK library
-
-	Download: [ RScaLAPACK_0.4.1.tgz ]
-		http://www.aspect-sdm.org/Parallel-R/RScaLAPACK/download.html
-		
-		or on CRAN: 
-
-		http://cran.r-project.org/mirrors.html	
+Add the above <build directory>/bin to your PATH
+	export PATH=<build directory>/bin:$PATH
 
 
-	Installation:
-		The easiest way to get a successful installation of RScaLAPACK.
-	
-		(1) Create a "lib" directory in your home area.
-			mkdir lib
+3. Instructions to install ScaLAPACK 
+------------------------------------
 
-		    -- Creates a library in /home/unknown/lib
+Download http://www.netlib.org/scalapack/scalapack_installer.tgz
+	wget http://www.netlib.org/scalapack/scalapack_installer.tgz
 
-		(2) Create symoblic links or copy all the ScaLAPACK related libraries to this 
-		    directory. i.e.
+Unzip scalapack_installer.tgz
+	tar zxvf scalapack_installer.tgz
 
-			libatlas.a
-			libcblas.a
-			libf77blas.a
-			libblacs.a
-			libblacsCinit.a
-			libblacsF77init.a
-			libscalapack.a
+Change in to the unziped directory
 
-		(3) Install RScaLAPACK
+Execute 
+	./setup.py  --prefix=<path to install> --downblas --downblacs --downlapack --f90=gfortran
 
-R CMD INSTALL --configure-args="--with-mpi=/path-to/mpi/home --with-scalapack=/home/unknown/lib" RScaLAPACK_0.4.1.tar.gz
+Add the above <build directory>/lib to your LD_LIBRARY_PATH
+	export LD_LIBRARY_PATH=<build directory>/lib:$LD_LIBRARY_PATH
 
-	If the libraries are installed in default locations like "/usr/lib" or "/usr/local/lib", then
-	just use
+4. Instructions to install RScaLAPACK
 
-R CMD INSTALL RScaLAPACK_0.4.1.tar.gz
+Download RScaLAPACK through CRAN
+	wget http://cran.cnr.berkeley.edu/src/contrib/RScaLAPACK_0.6.1.tar.gz
+
+	R CMD INSTALL  --configure-args="--with-f77 --with-mpi=<MPI install  home directory> --with-blacs=<scalapack build>/lib  --with-blas=<scalapack build>/lib --with-lapack=<scalapack build>/lib --with-scalapack=<scalapack build>/lib" RScaLAPACK_0.6.1.tar.gz
+===========================================================================================================
 
 
-Alternatively:
--------------
-If your libraries are not under the same directory, you can still configure without
-bringing all libraries to the same directory (either by copying or creating symbolic links)
-by using the configure options as shown below
 
-R CMD INSTALL --configure-args="--with-mpi=/path-to/mpi/home 
-				--with-blas=/path-to/blas/lib
-				--with-blacs=/path-to/blacs/lib
-				--with-scalapack=/path-to/scalapack/lib" RScaLAPACK_0.5.0.tar.gz
+FAQs
+----
+
+1.
+	I get the following error when I try to run RScaLAPACK functions on a cluster with OpenMPI.
+[system:13400] pls:tm: failed to poll for a spawned proc, return status = 17002
+[system:13400] [0,0,0] ORTE_ERROR_LOG: In errno in file rmgr_urm.c at line 462
+[system:13400] [0,0,0] ORTE_ERROR_LOG: In errno in file communicator/comm_dyn.c at line 608
+
+o	Try executing R with mpirun, like mpirun –np 1 R --vanilla
+
+2. 
+	I get the following error when I exit R after using RScaLAPACK library
+(handle_stdin_input 1089): stdin problem; if pgm is run in background, redirect from /dev/null
+
+o	You get this message when you are using MPICH mpi implementation. Try executing R with mpirun, like mpiexec –np 1 R --vanilla
+
+3. I get MPI_Finalize error after exiting R when I use RScaLAPACK library
+
+o	Its a MPICH2 issue. Known bug, waiting for the MPICH team to fix it. In the meantime, please execute "PA.exit()" to gracefully exit RScaLAPACK before you quit R.
 
 =======================================================================================================
-
-6. More questions: 
+CONTACT:
 	Write to parallel_r@mailhub.ornl.gov  
 ========================================================================================================
 
@@ -195,28 +148,30 @@ R CMD INSTALL --configure-args="--with-mpi=/path-to/mpi/home
                               II - Usage Instructions
                              -------------------------
 
+Testing RScaLAPACK 
+------------------
+
+Start R
+	R
+
+Execute 
 1. Load the RScaLAPACK library in the R-environment
-	
-	> library (RScaLAPACK)
+     library(RScaLAPACK)
 
-   Upon loading the library as shown above the RScaLAPACK fucntion calls are made
-   available to the user.
+2. Prepare data
+     rnorm(100)->x
+     dim(x)=c(10,10)
+     c(1,0*(1:9))->y
+     dim(y)=c(10,1)
 
+3. Execute RScaLAPACK's parallel solve routine
+     sla.solve(x,y)
 
-2. Create a matrix
-	> x <- matrix ( rnorm( 256 ), 16, 16)
-	
-	> y <- matrix ( rnorm( 16 ), 16, 1)
-
-	> sla.solve (x,y,2,2,2) 
-
-	To obtain the result.
-
-3. To find help for a function in R, use
+4. To find help for a function in R, use
 
 	> ?sla.solve
 
-4. To get to know the details of a package
+5. To get to know the details of a package
 
 	> help (package=RScaLAPACK)
 
@@ -235,5 +190,8 @@ For example:
 
 This command will run the R script demonstrating the usage of "sla.solve" function.
 	  
-===========================================================================================================
 
+=======================================================================================================
+CONTACT:
+	Write to parallel_r@mailhub.ornl.gov  
+========================================================================================================

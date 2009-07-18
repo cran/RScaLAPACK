@@ -1,7 +1,7 @@
 \name{sla.chol2inv}
 \title{Invert a Matrix from the Cholesky Decomposition (Using ScaLAPACK)}
 \usage{
-sla.chol2inv(A, NPROWS, NPCOLS, MB, RFLAG, SPAWN)
+sla.chol2inv(A, NPROWS=0, NPCOLS=0, MB=16, RFLAG = 1, SPAWN = 1 )
 }
 \alias{sla.chol2inv}
 \arguments{
@@ -46,18 +46,12 @@ computation.}
 }
 
 \examples{
-library(RScaLAPACK)
-rnorm(100)->x
-dim(x)=c(10,10)
-# First, generate a symmetric, positive definite matrix
-sla.chol2inv(x)->y
-print(y)
-# Invert
-sla.solve(y)->y2
-# Perform a Choleski decomposition
-sla.chol(y2)->x
+rnorm(10000)->x
+dim(x)=c(100,100)
+# Generate a symmetric, positive definite matrix
+sla.chol2inv(x, NPROWS=2, NPCOLS=2)->y
 
 }
-
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}

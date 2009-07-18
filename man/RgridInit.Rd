@@ -2,10 +2,14 @@
 \alias{sla.gridInit}
 \title{Initialize the Process Grid for ScaLAPACK Computations}
 \usage{
-sla.gridInit(NPROCS=0)
+sla.gridInit(NPROWS=1, NPCOLS=1, BLOCKSIZE=16)
 }
 \arguments{
-	\item{NPROCS}{ Number of Processes that form the process grid }
+	\item{NPROWS}{ Number of Process Rows in the process grid }
+
+	\item{NPCOLS}{ Number of Process Columns in the process grid }
+
+	\item{BLOCKSIZE}{Block Size. }
 }
 \description{
 	Sets up grid for use by the sla.* functions by spawning the requested number of processes.
@@ -30,10 +34,11 @@ sla.gridInit(NPROCS=0)
 \examples{
 
 x = matrix(rnorm(128*128), 128, 128)
-sla.gridInit(NPROCS=4)
-sla.solve(x, NPROWS=4)->a
+sla.gridInit(NPROWS=2, NPCOLS=2)
+sla.solve(x, NPROWS=2, NPCOLS=2, RFLAG=FALSE, SPAWN=FALSE)->a
 sla.gridExit()
 
 }
+\author{Nagiza Samatova (\email{samatovan@ornl.gov}), Guruprasad Kora (\email{koragh@ornl.gov}), Srikanth Yoginath (\email{yoginathsb@ornl.gov}), David Bauer (\email{bauerda@ornl.gov})}
 \concept{parallel}
 \keyword{algebra}
